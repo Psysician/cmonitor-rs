@@ -21,7 +21,7 @@ jobs:
           components: rustfmt, clippy
 
       - name: Install oracle Python dependencies
-        run: pip install pydantic pydantic-settings rich numpy pytz pyyaml
+        run: python3 -m pip install pydantic pydantic-settings rich numpy pytz pyyaml
 
       - name: Cache cargo artifacts
         uses: Swatinem/rust-cache@v2
