@@ -20,7 +20,7 @@ pub fn run_realtime_mode(resolved: &ResolvedConfig) -> anyhow::Result<ExitCode> 
         &resolved.cli,
         &mut io::stdout(),
         || load_report_state(resolved),
-        |duration| thread::sleep(duration),
+        thread::sleep,
         LoopControl::from_env(),
     )
 }
@@ -72,7 +72,7 @@ fn render_frame<W>(out: &mut W, report: &ReportState) -> anyhow::Result<()>
 where
     W: Write,
 {
-    write!(out, "\x1b[H\x1b[2J{}\n", realtime::render_realtime(report))?;
+    writeln!(out, "\x1b[H\x1b[2J{}", realtime::render_realtime(report))?;
     out.flush()?;
     Ok(())
 }
