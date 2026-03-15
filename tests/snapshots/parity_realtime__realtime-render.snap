@@ -1,0 +1,9 @@
+---
+source: tests/parity_realtime.rs
+expression: render_realtime(&report)
+---
+active block: 1700000000
+ends at: 2026-03-14 17:00:00.0 +00:00:00
+tokens: 12
+cost: 0.0100
+warnings: 0

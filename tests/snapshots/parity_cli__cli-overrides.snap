@@ -1,0 +1,63 @@
+---
+source: tests/parity_cli.rs
+expression: "json!({ \"oracle\": oracle, \"rust\": rust })"
+---
+{
+  "oracle": {
+    "args": [
+      "--plan",
+      "max20",
+      "--view",
+      "daily",
+      "--theme",
+      "dark",
+      "--timezone",
+      "UTC",
+      "--refresh-rate",
+      "5",
+      "--refresh-per-second",
+      "1.5"
+    ],
+    "exit_code": 0,
+    "last_used": {
+      "refresh_rate": 5,
+      "reset_hour": null,
+      "theme": "dark",
+      "time_format": "12h",
+      "timezone": "UTC",
+      "view": "daily"
+    },
+    "oracle_mode": "bundle",
+    "scenario": "cli-overrides",
+    "source_commit": "06f0fe11e694b8619f63f8b0db10dbdc5e7e5a44",
+    "stderr": "",
+    "stdout": "No Claude data directory found\n\u001b[?25h\u001b[?1049l"
+  },
+  "rust": {
+    "args": [
+      "--plan",
+      "max20",
+      "--view",
+      "daily",
+      "--theme",
+      "dark",
+      "--timezone",
+      "UTC",
+      "--refresh-rate",
+      "5",
+      "--refresh-per-second",
+      "1.5"
+    ],
+    "exit_code": 0,
+    "last_used": {
+      "refresh_rate": 5,
+      "reset_hour": null,
+      "theme": "dark",
+      "time_format": "24h",
+      "timezone": "UTC",
+      "view": "daily"
+    },
+    "stderr": "",
+    "stdout": "No Claude data directory found\n"
+  }
+}

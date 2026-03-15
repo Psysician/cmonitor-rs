@@ -1,0 +1,10 @@
+---
+source: tests/parity_tables.rs
+expression: output
+---
+total tokens: 20
+total cost: 0.0100
+total messages: 1
+daily usage
+label | tokens | cost | models
+2026-03-14 | 20 | 0.0100 | claude-3-7-sonnet-20250219

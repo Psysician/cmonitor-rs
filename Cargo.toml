@@ -1,15 +1,40 @@
+# The single-crate rewrite keeps behavior seams explicit while parity coverage grows. (ref: DL-002)
+# The vendored oracle stays reproducible and auditable on every checkout. (ref: DL-006)
+
 [package]
 name = "cmonitor-rs"
 version = "0.1.0"
 edition = "2024"
-description = "Rust rewrite scaffold for Claude Code Usage Monitor"
+description = "Rust rewrite of Claude Code Usage Monitor with oracle-backed parity harness"
 license = "MIT"
 repository = "https://github.com/Psysician/cmonitor-rs"
 homepage = "https://github.com/Psysician/cmonitor-rs"
 readme = "README.md"
 rust-version = "1.93"
+default-run = "cmonitor-rs"
 keywords = ["claude", "monitor", "terminal", "usage", "cli"]
 categories = ["command-line-utilities"]
 
+[lib]
+name = "cmonitor_rs"
+path = "src/lib.rs"
+
+[[bin]]
+name = "cmonitor-rs"
+path = "src/main.rs"
+
 [dependencies]
+anyhow = "1.0"
+# Named-region grouping needs chrono-tz, while time continues to own the CLI
+# timestamp surface and fixed-offset formatting. (ref: DL-003, DL-006)
+chrono = "0.4"
+chrono-tz = "0.10"
 clap = { version = "4.5", features = ["derive"] }
+# Safe cross-platform SIGINT handling without unsafe FFI. (ref: DL-007)
+ctrlc = "3.4"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+time = { version = "0.3", features = ["formatting", "macros", "parsing", "serde"] }
+
+[dev-dependencies]
+insta = { version = "1.42", features = ["json", "redactions"] }
