@@ -1,5 +1,11 @@
 # The single-crate rewrite keeps behavior seams explicit while parity coverage grows. (ref: DL-002)
 # The vendored oracle stays reproducible and auditable on every checkout. (ref: DL-006)
+#
+# Dependency substitutions from the original plan (ref: DL-002):
+# - camino, directories, walkdir -> std::path + std::fs (sufficient for flat discovery)
+# - toml -> not needed (config is JSON-based last_used.json)
+# - tracing, tracing-subscriber -> deferred (logging flags accepted for CLI parity but not wired)
+# - assert_cmd, assert_fs, predicates, tempfile -> std::process::Command + std::fs (fewer test deps)
 
 [package]
 name = "cmonitor-rs"

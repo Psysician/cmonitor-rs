@@ -249,3 +249,40 @@ fn clear_flow_removes_persisted_last_used_file() {
     );
     insta::assert_json_snapshot!("cli-clear", json!({ "oracle": oracle, "rust": rust }));
 }
+
+#[test]
+#[ignore = "deferred: time_format default diverges (rust=24h, oracle=12h) — ref DL-005"]
+fn time_format_default_matches_oracle() {
+    let oracle_home = unique_home("time-format-oracle");
+    let rust_home = unique_home("time-format-rust");
+    seed_home(&oracle_home, None);
+    seed_home(&rust_home, None);
+
+    let oracle = run_oracle("cli-defaults", &oracle_home);
+    let rust = run_rust(&[], &rust_home);
+
+    let oracle_tf = oracle["last_used"]["time_format"].as_str();
+    let rust_tf = rust["last_used"]["time_format"].as_str();
+    assert_eq!(
+        rust_tf, oracle_tf,
+        "time_format default must match oracle (oracle={oracle_tf:?}, rust={rust_tf:?})"
+    );
+}
+
+#[test]
+#[ignore = "deferred: version diverges (rust=0.1.0, oracle=3.1.0)"]
+fn version_string_matches_oracle() {
+    let oracle_home = unique_home("version-match-oracle");
+    let rust_home = unique_home("version-match-rust");
+    seed_home(&oracle_home, None);
+    seed_home(&rust_home, None);
+
+    let oracle = run_oracle("cli-version", &oracle_home);
+    let rust = run_rust(&["--version"], &rust_home);
+
+    assert_eq!(
+        version_stdout(&rust),
+        version_stdout(&oracle),
+        "version string must match oracle exactly"
+    );
+}

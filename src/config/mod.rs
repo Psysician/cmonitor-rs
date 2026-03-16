@@ -158,6 +158,10 @@ pub struct Cli {
     pub refresh_rate: u64,
     pub refresh_per_second: f64,
     pub reset_hour: Option<u8>,
+    // Accepted for upstream CLI parity but not wired to a logging backend.
+    // The upstream oracle uses these with setup_logging() but parity tests
+    // do not assert logging output. Wire tracing-subscriber when debug
+    // output becomes a parity requirement.
     pub log_level: String,
     pub log_file: Option<PathBuf>,
     pub debug: bool,

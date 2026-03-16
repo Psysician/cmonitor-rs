@@ -28,6 +28,9 @@ jobs:
       - name: Install oracle Python dependencies
         run: pip install pydantic pydantic-settings rich numpy pytz pyyaml
 
+      - name: Verify oracle bundle imports
+        run: PYTHONPATH=tests/vendor/claude-code-usage-monitor/src python3 -c "import claude_monitor.cli.main"
+
       - name: Cache cargo artifacts
         uses: Swatinem/rust-cache@v2
 
