@@ -2,24 +2,25 @@
 
 ## Runtime loop
 
-1. Load CLI/config state and resolve plan thresholds.
-2. Discover and parse Claude session files from the configured data root.
-3. Build an in-memory view model for usage, limits, and warning thresholds.
-4. Drive a refresh loop that updates derived state on a fixed cadence.
-5. Render terminal output without coupling parsing to presentation details.
+1. Load CLI arguments and merge saved `last_used.json` preferences.
+2. Discover Claude data roots and preserve the upstream first-root compatibility decision.
+3. Collect and decode JSONL files into raw events plus malformed-line diagnostics.
+4. Normalize usage entries, build five-hour session blocks, detect limit events, and compute custom-plan limits.
+5. Project the analysis output into one shared report state.
+6. Render either deterministic daily or monthly tables, or hand the same report state to realtime mode.
 
-## Planned module boundaries
+## Shared report boundary
 
-- `config`: CLI parsing and persisted preferences
-- `discovery`: file traversal and session selection
-- `parser`: JSONL decoding and usage normalization
-- `domain`: plans, thresholds, and usage state
-- `analysis`: burn-rate, predictions, and warning computation
-- `ui`: terminal layout and refresh loop
+- `parser` owns raw-event decoding and typed entry normalization.
+- `analysis` owns session blocks, limit detection, and P90 custom-limit math.
+- `report` owns the renderer-neutral totals and grouped aggregates.
+- `ui` only turns report state into strings or terminal widgets.
+- `runtime` owns orchestration, refresh cadence, and terminal lifecycle.
+- `compat` isolates upstream quirks such as first-root selection, latent `session` view handling, and alternate-screen defaults.
 
 ## Implementation guardrails
 
-- Keep the data model reusable by daily/monthly views and realtime UI.
-- Prefer fixture-driven session snapshots over synthetic one-off parsing tests.
-- Defer provider expansion until the single-provider baseline is stable.
-
+- Daily and monthly views must consume the same `ReportState` as realtime mode.
+- Table mode must remain deterministic and avoid alternate-screen control.
+- Intentional safety fixes stay behind compatibility gates until the parity matrix is green.
+- Fixture-backed oracle comparisons outrank README prose when the two disagree.

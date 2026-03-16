@@ -1,0 +1,27 @@
+---
+source: tests/parity_cli.rs
+expression: "json!({ \"oracle\": oracle, \"rust\": rust })"
+---
+{
+  "oracle": {
+    "args": [
+      "--version"
+    ],
+    "exit_code": 0,
+    "last_used": null,
+    "oracle_mode": "bundle",
+    "scenario": "cli-version",
+    "source_commit": "06f0fe11e694b8619f63f8b0db10dbdc5e7e5a44",
+    "stderr": "",
+    "stdout": "claude-monitor 3.1.0\n"
+  },
+  "rust": {
+    "args": [
+      "--version"
+    ],
+    "exit_code": 0,
+    "last_used": null,
+    "stderr": "",
+    "stdout": "claude-monitor 0.1.0\n"
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "bundle_dir": "tests/vendor/claude-code-usage-monitor",
+  "source": {
+    "repo": "https://github.com/Maciek-roboblog/Claude-Code-Usage-Monitor",
+    "commit": "06f0fe11e694b8619f63f8b0db10dbdc5e7e5a44",
+    "local_override_env": "CMONITOR_UPSTREAM_SOURCE"
+  },
+  "scenarios": [
+    "cli-defaults",
+    "cli-overrides",
+    "cli-version",
+    "cli-clear"
+  ],
+  "oracle_env": {
+    "TZ": "UTC",
+    "NO_COLOR": "1",
+    "LANG": "C.UTF-8",
+    "LC_TIME": "C.UTF-8"
+  },
+  "required_files": [
+    "pyproject.toml",
+    "src/claude_monitor/__init__.py",
+    "src/claude_monitor/__main__.py",
+    "src/claude_monitor/_version.py",
+    "src/claude_monitor/error_handling.py"
+  ],
+  "required_roots": [
+    "src/claude_monitor/cli",
+    "src/claude_monitor/core",
+    "src/claude_monitor/data",
+    "src/claude_monitor/monitoring",
+    "src/claude_monitor/terminal",
+    "src/claude_monitor/ui",
+    "src/claude_monitor/utils"
+  ],
+  "notes": [
+    "The vendored bundle is the parity oracle for executable behavior.",
+    "Refresh the vendored bundle by copying the upstream executable subset needed by the CLI, settings, monitoring, terminal, and table flows.",
+    "Manifest-driven inventory keeps bundle-mode parity aligned with upstream imports. (ref: DL-001)",
+    "Parity tests fail if the vendored oracle cannot import, rather than falling back to an emulated payload."
+  ]
+}

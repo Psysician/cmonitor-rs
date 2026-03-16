@@ -1,0 +1,9 @@
+{
+  "theme": "dark",
+  "timezone": "UTC",
+  "time_format": "24h",
+  "refresh_rate": 10,
+  "reset_hour": null,
+  "view": "realtime",
+  "timestamp": "2026-03-15T16:37:04.519732"
+}
