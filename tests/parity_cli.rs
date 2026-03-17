@@ -1,5 +1,7 @@
 use serde_json::{Value, json};
 use std::fs;
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -248,6 +250,33 @@ fn clear_flow_removes_persisted_last_used_file() {
         "clear should remove last_used.json"
     );
     insta::assert_json_snapshot!("cli-clear", json!({ "oracle": oracle, "rust": rust }));
+}
+
+#[cfg(unix)]
+#[test]
+fn defaults_continue_when_last_used_cannot_be_written() {
+    let rust_home = unique_home("cli-readonly-home");
+    seed_home(&rust_home, None);
+
+    let mut permissions = fs::metadata(&rust_home)
+        .expect("home metadata should exist")
+        .permissions();
+    permissions.set_mode(0o555);
+    fs::set_permissions(&rust_home, permissions).expect("mark home read-only");
+
+    let rust = run_rust(&[], &rust_home);
+
+    let mut permissions = fs::metadata(&rust_home)
+        .expect("home metadata should still exist")
+        .permissions();
+    permissions.set_mode(0o755);
+    fs::set_permissions(&rust_home, permissions).expect("restore home permissions");
+    fs::remove_dir_all(&rust_home).expect("cleanup read-only test home");
+
+    assert_eq!(rust["exit_code"], json!(0));
+    assert_eq!(rust["stderr"], json!(""));
+    assert_eq!(rust["stdout"], json!("No Claude data directory found\n"));
+    assert_eq!(rust["last_used"], Value::Null);
 }
 
 #[test]

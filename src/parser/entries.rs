@@ -6,6 +6,7 @@ use time::OffsetDateTime;
 use time::format_description::well_known::Rfc3339;
 
 use crate::domain::{TokenUsage, UsageEntry};
+use crate::domain::pricing::calculate_entry_cost;
 use crate::parser::jsonl::{DecodedJsonl, RawUsageEvent};
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
@@ -66,13 +67,19 @@ pub fn normalize_usage_entries(
             continue;
         }
 
+        let model = normalize_model(&event.payload);
+        let cost_usd = event
+            .payload
+            .get("cost")
+            .and_then(Value::as_f64)
+            .or_else(|| Some(calculate_entry_cost(&model, &tokens)));
         let entry = UsageEntry {
             timestamp,
-            model: normalize_model(&event.payload),
+            model,
             message_id: message_id(&event.payload),
             request_id: request_id(&event.payload),
             tokens,
-            cost_usd: event.payload.get("cost").and_then(Value::as_f64),
+            cost_usd,
             source_file: event.source_file.clone(),
             line_number: event.line_number,
         };
@@ -95,25 +102,45 @@ fn parse_timestamp(payload: &Value) -> Option<OffsetDateTime> {
 }
 
 fn extract_tokens(payload: &Value) -> TokenUsage {
-    let usage = payload.get("usage").cloned().unwrap_or(Value::Null);
-    TokenUsage {
-        input_tokens: usage
+    let is_assistant = payload.get("type").and_then(Value::as_str) == Some("assistant");
+
+    let message_usage = payload.get("message").and_then(|m| m.get("usage"));
+    let root_usage = payload.get("usage");
+
+    let sources = if is_assistant {
+        [message_usage, root_usage]
+    } else {
+        [root_usage, message_usage]
+    };
+
+    for source in sources.into_iter().flatten() {
+        let input = source
             .get("input_tokens")
             .and_then(Value::as_u64)
-            .unwrap_or_default(),
-        output_tokens: usage
+            .unwrap_or(0);
+        let output = source
             .get("output_tokens")
             .and_then(Value::as_u64)
-            .unwrap_or_default(),
-        cache_creation_tokens: usage
-            .get("cache_creation_tokens")
-            .and_then(Value::as_u64)
-            .unwrap_or_default(),
-        cache_read_tokens: usage
-            .get("cache_read_tokens")
-            .and_then(Value::as_u64)
-            .unwrap_or_default(),
+            .unwrap_or(0);
+        if input > 0 || output > 0 {
+            return TokenUsage {
+                input_tokens: input,
+                output_tokens: output,
+                cache_creation_tokens: source
+                    .get("cache_creation_tokens")
+                    .or_else(|| source.get("cache_creation_input_tokens"))
+                    .and_then(Value::as_u64)
+                    .unwrap_or(0),
+                cache_read_tokens: source
+                    .get("cache_read_input_tokens")
+                    .or_else(|| source.get("cache_read_tokens"))
+                    .and_then(Value::as_u64)
+                    .unwrap_or(0),
+            };
+        }
     }
+
+    TokenUsage::default()
 }
 
 fn message_id(payload: &Value) -> Option<String> {
@@ -174,20 +201,7 @@ fn should_preserve_raw_event(payload: &Value) -> bool {
 }
 
 fn has_nonzero_tokens(payload: &Value) -> bool {
-    payload
-        .get("usage")
-        .and_then(|usage| {
-            let input = usage
-                .get("input_tokens")
-                .and_then(Value::as_u64)
-                .unwrap_or(0);
-            let output = usage
-                .get("output_tokens")
-                .and_then(Value::as_u64)
-                .unwrap_or(0);
-            if input + output > 0 { Some(()) } else { None }
-        })
-        .is_some()
+    extract_tokens(payload).total_tokens() > 0
 }
 
 /// Sorts preserved raw rows deterministically; unparseable timestamps sort last

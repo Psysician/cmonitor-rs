@@ -25,8 +25,10 @@ where
 
     if resolved.cli.clear {
         resolved.store.clear()?;
-    } else {
-        resolved.store.save_last_used(&resolved.cli)?;
+    } else if let Err(error) = resolved.store.save_last_used(&resolved.cli)
+        && !config::should_ignore_last_used_save_error(&error)
+    {
+        return Err(error);
     }
 
     match resolved.cli.view {

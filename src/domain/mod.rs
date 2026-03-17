@@ -1,4 +1,5 @@
 pub mod plan;
+pub(crate) mod pricing;
 pub mod session_block;
 pub mod usage_entry;
 

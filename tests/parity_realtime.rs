@@ -3,10 +3,10 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use cmonitor_rs::compat::terminal_policy::{TerminalPolicy, default_terminal_policy};
-use cmonitor_rs::config::{Cli, Plan, Theme, TimeFormat, View};
 use cmonitor_rs::report::{ActiveSessionReport, ReportState, ReportTotals};
-use cmonitor_rs::ui::realtime::render_realtime;
+use cmonitor_rs::runtime::theme::resolve_theme;
+use cmonitor_rs::config::Theme;
+use cmonitor_rs::ui::realtime::{RealtimeContext, render_realtime};
 use time::macros::datetime;
 
 /// Resolves the workspace root once so binary-driven realtime tests execute
@@ -46,22 +46,14 @@ fn seed_realtime_home(home: &Path) {
     fs::write(project_dir.join("session.jsonl"), payload).expect("write realtime fixture");
 }
 
-fn cli() -> Cli {
-    Cli {
-        plan: Plan::Custom,
-        custom_limit_tokens: None,
-        view: View::Realtime,
+fn test_context() -> RealtimeContext {
+    RealtimeContext {
+        plan_name: "pro".to_owned(),
+        token_limit: Some(44_000),
+        message_limit: Some(45),
         timezone: "UTC".to_owned(),
-        time_format: TimeFormat::Auto,
-        theme: Theme::Auto,
-        refresh_rate: 10,
-        refresh_per_second: 0.75,
-        reset_hour: None,
-        log_level: "INFO".to_owned(),
-        log_file: None,
-        debug: false,
-        clear: false,
-        version: false,
+        theme: resolve_theme(Theme::Classic),
+        now: datetime!(2026-03-14 14:30 UTC),
     }
 }
 
@@ -86,22 +78,22 @@ fn realtime_render_snapshot_is_deterministic() {
                 total_messages: 1,
             },
             warnings: Vec::new(),
+            per_model: vec![cmonitor_rs::report::ModelStats {
+                model: "claude-3-5-sonnet-20241022".to_owned(),
+                input_tokens: 8,
+                output_tokens: 4,
+                cache_creation_tokens: 0,
+                cache_read_tokens: 0,
+                total_tokens: 12,
+                cost_usd: 0.01,
+            }],
+            models: vec!["claude-3-5-sonnet-20241022".to_owned()],
         }),
+        custom_limit: None,
     };
 
-    insta::assert_snapshot!("realtime-render", render_realtime(&report));
-}
-
-#[test]
-fn parity_terminal_policy_keeps_non_tty_gate_disabled() {
-    let policy = default_terminal_policy(&cli());
-    assert_eq!(
-        policy,
-        TerminalPolicy {
-            force_alternate_screen: true,
-            deferred_non_tty_gate: false,
-        }
-    );
+    let ctx = test_context();
+    insta::assert_snapshot!("realtime-render", render_realtime(&report, &ctx));
 }
 
 #[test]
@@ -126,18 +118,47 @@ fn realtime_no_data_fast_path_skips_alternate_screen() {
 }
 
 #[test]
-/// Bounds the live path by frame count so repeated renders are asserted without
-/// manual interruption. (ref: DL-004, DL-005)
-fn realtime_data_path_enters_alternate_screen_and_stops_after_test_frames() {
+/// Falls back to a plain single snapshot when the process does not own a
+/// terminal, preventing ANSI control noise in unsupported environments.
+fn realtime_data_path_falls_back_to_plain_snapshot_without_terminal() {
     let home = unique_home("realtime-live");
     seed_realtime_home(&home);
 
     let output = Command::new(bin_path())
         .current_dir(repo_root())
         .env("HOME", &home)
+        .arg("--view")
+        .arg("realtime")
+        .arg("--plan")
+        .arg("pro")
+        .output()
+        .expect("realtime binary should execute");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(!stdout.contains("\x1b[?1049h"));
+    assert!(!stdout.contains("\x1b[H\x1b[2J"));
+    assert_eq!(stdout.matches("CLAUDE CODE USAGE MONITOR").count(), 1);
+}
+
+#[test]
+/// Bounds the live path by frame count so repeated renders are asserted without
+/// manual interruption when terminal ownership is explicitly enabled in tests.
+/// (ref: DL-004, DL-005)
+fn realtime_data_path_enters_alternate_screen_and_stops_after_test_frames() {
+    let home = unique_home("realtime-live-tty");
+    seed_realtime_home(&home);
+
+    let output = Command::new(bin_path())
+        .current_dir(repo_root())
+        .env("HOME", &home)
+        .env("TERM", "xterm-256color")
+        .env("CMONITOR_TEST_FORCE_TTY", "1")
         .env("CMONITOR_TEST_MAX_FRAMES", "3")
         .arg("--view")
         .arg("realtime")
+        .arg("--plan")
+        .arg("pro")
         .arg("--refresh-rate")
         .arg("1")
         .arg("--refresh-per-second")
@@ -150,5 +171,5 @@ fn realtime_data_path_enters_alternate_screen_and_stops_after_test_frames() {
     assert!(stdout.contains("\x1b[?1049h"));
     assert!(stdout.contains("\x1b[?1049l"));
     assert!(stdout.matches("\x1b[H\x1b[2J").count() >= 3);
-    assert!(stdout.matches("active block:").count() >= 3);
+    assert!(stdout.matches("CLAUDE CODE USAGE MONITOR").count() >= 3);
 }

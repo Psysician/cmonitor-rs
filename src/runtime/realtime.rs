@@ -4,13 +4,40 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use crate::config::{Cli, ResolvedConfig};
+use time::OffsetDateTime;
+
+use crate::compat::terminal_policy::default_terminal_policy;
+use crate::config::{Cli, Plan, ResolvedConfig};
+use crate::domain::{PlanType, plan_definition};
 use crate::report::ReportState;
 use crate::runtime::orchestrator::load_report_state;
 use crate::runtime::terminal::TerminalGuard;
-use crate::ui::realtime;
+use crate::runtime::theme::resolve_theme;
+use crate::ui::realtime::{self, RealtimeContext};
 
 static INTERRUPTED: AtomicBool = AtomicBool::new(false);
+
+fn build_realtime_context(cli: &Cli, report: &ReportState) -> RealtimeContext {
+    let plan_type = match cli.plan {
+        Plan::Pro => PlanType::Pro,
+        Plan::Max5 => PlanType::Max5,
+        Plan::Max20 => PlanType::Max20,
+        Plan::Custom => PlanType::Custom,
+    };
+
+    let custom_limit = report.custom_limit.or(cli.custom_limit_tokens.map(|v| v as u64));
+    let def = plan_definition(plan_type, custom_limit);
+    let theme = resolve_theme(cli.theme);
+
+    RealtimeContext {
+        plan_name: def.name,
+        token_limit: def.token_limit,
+        message_limit: def.message_limit,
+        timezone: cli.timezone.clone(),
+        theme,
+        now: OffsetDateTime::now_utc(),
+    }
+}
 
 /// Keeps the terminal guard alive for the full refresh loop so alternate-screen
 /// output persists until an explicit exit path fires. (ref: DL-004)
@@ -45,13 +72,22 @@ where
         return Ok(ExitCode::SUCCESS);
     }
 
+    let policy = default_terminal_policy(cli);
+    if policy.deferred_non_tty_gate {
+        let ctx = build_realtime_context(cli, &report);
+        writeln!(out, "{}", realtime::render_realtime(&report, &ctx))?;
+        out.flush()?;
+        return Ok(ExitCode::SUCCESS);
+    }
+
     let _guard = TerminalGuard::enter(cli)?;
     let display_interval = Duration::from_secs_f64(1.0 / cli.refresh_per_second);
     let data_interval = Duration::from_secs(cli.refresh_rate);
     let mut next_reload_at = Instant::now() + data_interval;
 
     loop {
-        render_frame(out, &report)?;
+        let ctx = build_realtime_context(cli, &report);
+        render_frame(out, &report, &ctx)?;
         if control.should_exit_after_frame() || interrupted() {
             return Ok(ExitCode::SUCCESS);
         }
@@ -68,11 +104,11 @@ where
 
 /// Flushes each frame immediately because alternate-screen teardown happens on
 /// guard drop rather than at print boundaries. (ref: DL-004)
-fn render_frame<W>(out: &mut W, report: &ReportState) -> anyhow::Result<()>
+fn render_frame<W>(out: &mut W, report: &ReportState, ctx: &RealtimeContext) -> anyhow::Result<()>
 where
     W: Write,
 {
-    writeln!(out, "\x1b[H\x1b[2J{}", realtime::render_realtime(report))?;
+    writeln!(out, "\x1b[H\x1b[2J{}", realtime::render_realtime(report, ctx))?;
     out.flush()?;
     Ok(())
 }

@@ -31,6 +31,8 @@ pub fn load_report_state(_resolved: &ResolvedConfig) -> anyhow::Result<ReportSta
     } = normalize_usage_entries(decoded, None);
     let mut blocks = transform_to_blocks(&entries, now);
     let limits = detect_limit_events(&retained_raw_events, &mut blocks);
-    let _custom_limit = calculate_custom_limit(&blocks);
-    Ok(ReportState::from_blocks(now, blocks, limits))
+    let custom_limit = calculate_custom_limit(&blocks);
+    let mut state = ReportState::from_blocks(now, blocks, limits);
+    state.custom_limit = custom_limit;
+    Ok(state)
 }

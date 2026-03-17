@@ -370,6 +370,20 @@ pub fn version_banner() -> String {
     format!("claude-monitor {}", env!("CARGO_PKG_VERSION"))
 }
 
+/// Treats unwritable config homes as non-fatal for ordinary runs so reporting
+/// still works in read-only environments. `--clear` remains strict because the
+/// write/delete side effect is the point of that command path.
+pub fn should_ignore_last_used_save_error(error: &anyhow::Error) -> bool {
+    error.chain().any(|cause| {
+        cause
+            .downcast_ref::<std::io::Error>()
+            .is_some_and(|io_error| {
+                matches!(io_error.kind(), ErrorKind::PermissionDenied)
+                    || io_error.raw_os_error() == Some(30)
+            })
+    })
+}
+
 fn parse_refresh_per_second(value: &str) -> Result<f64, String> {
     let parsed = value
         .parse::<f64>()
