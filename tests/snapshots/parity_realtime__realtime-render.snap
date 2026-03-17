@@ -1,6 +1,6 @@
 ---
 source: tests/parity_realtime.rs
-assertion_line: 103
+assertion_line: 96
 expression: "render_realtime(&report, &ctx)"
 ---
  [1m[36mCLAUDE CODE USAGE MONITOR[0m
@@ -8,11 +8,11 @@ expression: "render_realtime(&report, &ctx)"
  [37mpro[0m | [90mUTC[0m
 
  [37mToken Usage[0m     [[32m[90m░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░[0m] [97m  0.0%[0m    [97m12[0m / [90m44,000[0m
- [37mCost[0m            [97m$0.01[0m
+ [37mCost[0m            [[32m[90m░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░[0m] [97m  0.0%[0m    [97m$0.01[0m
  [37mMessages[0m        [[32m█[90m░░░░░░░░░░░░░░░░░░░░░░░░░░░░░[0m] [97m  2.2%[0m    [97m1[0m / [90m45[0m
 [90m============================================================[0m
  [37mTime Remaining[0m  [[33m███████████████[90m░░░░░░░░░░░░░░░[0m]          [97m2h 30m left[0m
- [37mModel Split[0m     [90msonnet 100.0%[0m
+ [37mModel Split[0m     [[33m██████████████████████████████[0m] [90msonnet 100.0%[0m
 [90m============================================================[0m
  [37mBurn Rate[0m       [97m0.1 tok/min[0m
  [37mCost Rate[0m       [97m$0.0001/min[0m

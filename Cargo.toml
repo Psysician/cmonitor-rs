@@ -44,3 +44,9 @@ time = { version = "0.3", features = ["formatting", "macros", "parsing", "serde"
 
 [dev-dependencies]
 insta = { version = "1.42", features = ["json", "redactions"] }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "symbols"
+panic = "abort"

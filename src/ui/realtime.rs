@@ -1,5 +1,6 @@
 use time::OffsetDateTime;
 
+use crate::report::model::ModelStats;
 use crate::report::ReportState;
 use crate::runtime::theme::ThemePalette;
 
@@ -83,12 +84,33 @@ pub fn render_realtime(report: &ReportState, ctx: &RealtimeContext) -> String {
 
     // Cost bar
     let cost = active.totals.total_cost_usd;
-    out.push_str(&format!(
-        " {label}Cost{reset}            {value}${cost:.2}{reset}\n",
-        label = t.label,
-        value = t.value,
-        reset = t.reset,
-    ));
+    if let Some(limit) = ctx.token_limit {
+        let avg_cost_per_token = if active.totals.total_tokens > 0 {
+            cost / active.totals.total_tokens as f64
+        } else {
+            0.0
+        };
+        let estimated_max_cost = limit as f64 * avg_cost_per_token;
+        let cost_pct = if estimated_max_cost > 0.0 {
+            (cost / estimated_max_cost * 100.0).min(100.0)
+        } else {
+            0.0
+        };
+        let bar = render_progress_bar(cost_pct, 30, t);
+        out.push_str(&format!(
+            " {label}Cost{reset}            {bar} {value}{cost_pct:>5.1}%{reset}    {value}${cost:.2}{reset}\n",
+            label = t.label,
+            value = t.value,
+            reset = t.reset,
+        ));
+    } else {
+        out.push_str(&format!(
+            " {label}Cost{reset}            {value}${cost:.2}{reset}\n",
+            label = t.label,
+            value = t.value,
+            reset = t.reset,
+        ));
+    }
 
     // Messages bar
     if let Some(msg_limit) = ctx.message_limit {
@@ -133,21 +155,22 @@ pub fn render_realtime(report: &ReportState, ctx: &RealtimeContext) -> String {
 
     // Model split
     if !active.per_model.is_empty() {
-        let total = active.totals.total_tokens.max(1) as f64;
-        let parts: Vec<String> = active
+        let total = active.totals.total_tokens.max(1);
+        let bar = render_model_split_bar(&active.per_model, total, 30, t);
+        let legend: Vec<String> = active
             .per_model
             .iter()
             .map(|m| {
-                let pct = m.total_tokens as f64 / total * 100.0;
+                let pct = m.total_tokens as f64 / total as f64 * 100.0;
                 format!("{} {:.1}%", short_model_name(&m.model), pct)
             })
             .collect();
         out.push_str(&format!(
-            " {label}Model Split{reset}     {dim}{parts}{reset}\n",
+            " {label}Model Split{reset}     {bar} {dim}{legend}{reset}\n",
             label = t.label,
             dim = t.dim,
             reset = t.reset,
-            parts = parts.join(" | "),
+            legend = legend.join(" | "),
         ));
     }
 
@@ -225,6 +248,47 @@ fn render_progress_bar(pct: f64, width: usize, theme: &ThemePalette) -> String {
         empty = "\u{2591}".repeat(empty),
         reset = theme.reset,
     )
+}
+
+fn render_model_split_bar(per_model: &[ModelStats], total_tokens: u64, width: usize, theme: &ThemePalette) -> String {
+    let total = total_tokens.max(1) as f64;
+    let mut segments: Vec<(usize, &str)> = Vec::new();
+    let mut chars_assigned = 0usize;
+
+    for (i, m) in per_model.iter().enumerate() {
+        let color = match short_model_name(&m.model) {
+            "opus" => theme.bar_high,
+            "sonnet" => theme.bar_mid,
+            "haiku" => theme.bar_low,
+            _ => theme.dim,
+        };
+        let chars = if i == per_model.len() - 1 {
+            width.saturating_sub(chars_assigned)
+        } else {
+            ((m.total_tokens as f64 / total) * width as f64).round() as usize
+        };
+        let chars = chars.min(width.saturating_sub(chars_assigned));
+        chars_assigned += chars;
+        segments.push((chars, color));
+    }
+
+    let empty = width.saturating_sub(chars_assigned);
+
+    let mut bar = String::with_capacity(width * 8 + 16);
+    bar.push('[');
+    for (chars, color) in &segments {
+        if *chars > 0 {
+            bar.push_str(color);
+            bar.push_str(&"\u{2588}".repeat(*chars));
+        }
+    }
+    if empty > 0 {
+        bar.push_str(theme.dim);
+        bar.push_str(&"\u{2591}".repeat(empty));
+    }
+    bar.push_str(theme.reset);
+    bar.push(']');
+    bar
 }
 
 pub fn format_number(n: u64) -> String {

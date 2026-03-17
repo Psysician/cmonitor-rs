@@ -71,7 +71,7 @@ pub fn aggregate_per_model(entries: &[UsageEntry]) -> Vec<ModelStats> {
 impl ReportState {
     pub fn from_blocks(
         generated_at: OffsetDateTime,
-        blocks: Vec<SessionBlock>,
+        mut blocks: Vec<SessionBlock>,
         limits: Vec<LimitEvent>,
     ) -> Self {
         let totals = blocks
@@ -100,6 +100,13 @@ impl ReportState {
                     per_model: aggregate_per_model(&block.entries),
                     models: block.models.clone(),
                 });
+
+        for block in &mut blocks {
+            if !block.is_active {
+                block.entries.clear();
+                block.entries.shrink_to_fit();
+            }
+        }
 
         Self {
             generated_at,

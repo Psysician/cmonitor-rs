@@ -9,11 +9,7 @@ use crate::domain::{TokenUsage, UsageEntry};
 use crate::domain::pricing::calculate_entry_cost;
 use crate::parser::jsonl::{DecodedJsonl, RawUsageEvent};
 
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
-pub struct DedupKey {
-    pub message_id: String,
-    pub request_id: String,
-}
+pub use crate::parser::jsonl::DedupKey;
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct EntryNormalization {
