@@ -3,8 +3,10 @@ use std::path::PathBuf;
 use time::macros::datetime;
 
 use cmonitor_rs::analysis::transform_to_blocks;
+use cmonitor_rs::config::Theme;
 use cmonitor_rs::domain::{TokenUsage, UsageEntry};
 use cmonitor_rs::report::{ReportState, build_daily_rows, build_monthly_rows};
+use cmonitor_rs::runtime::theme::resolve_theme;
 use cmonitor_rs::ui::{summary, table};
 
 fn entry(timestamp: time::OffsetDateTime, total: u64) -> UsageEntry {
@@ -32,10 +34,11 @@ fn daily_table_snapshot_is_deterministic() {
         datetime!(2026-03-14 18:00 UTC),
     );
     let report = ReportState::from_blocks(datetime!(2026-03-14 18:00 UTC), blocks, Vec::new());
+    let theme = resolve_theme(Theme::Classic);
     let output = format!(
         "{}\n{}",
         summary::render_summary(&report),
-        table::render_table("daily usage", &build_daily_rows(&report, "UTC"))
+        table::render_table("daily usage", &build_daily_rows(&report, "UTC"), &theme)
     );
 
     insta::assert_snapshot!("daily-table", output);
@@ -48,10 +51,11 @@ fn monthly_table_snapshot_is_deterministic() {
         datetime!(2026-03-14 18:00 UTC),
     );
     let report = ReportState::from_blocks(datetime!(2026-03-14 18:00 UTC), blocks, Vec::new());
+    let theme = resolve_theme(Theme::Classic);
     let output = format!(
         "{}\n{}",
         summary::render_summary(&report),
-        table::render_table("monthly usage", &build_monthly_rows(&report, "UTC"))
+        table::render_table("monthly usage", &build_monthly_rows(&report, "UTC"), &theme)
     );
 
     insta::assert_snapshot!("monthly-table", output);
