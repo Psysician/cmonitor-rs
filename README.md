@@ -1,60 +1,134 @@
 # cmonitor-rs
 
-`cmonitor-rs` is a clean Rust rewrite of [`Maciek-roboblog/Claude-Code-Usage-Monitor`](https://github.com/Maciek-roboblog/Claude-Code-Usage-Monitor).
+**Fast, visual Claude Code usage monitor written in Rust.**
 
-The shipped parity line stays focused on the upstream Claude-only monitor contract: local Claude JSONL ingestion, five-hour session blocks, custom-plan P90 limits, and terminal-first daily, monthly, and realtime views.
+A clean Rust rewrite of [Claude-Code-Usage-Monitor](https://github.com/Maciek-roboblog/Claude-Code-Usage-Monitor) with parallel parsing, delta-reload caching, and a modern terminal dashboard.
+
+```
+ ╭─── CLAUDE CODE USAGE MONITOR ──────────────────────────╮
+ │ custom plan · UTC · ◉ active                            │
+ ╰─────────────────────────────────────────────────────────╯
+
+   Tokens      ━━━━━━━╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌  26.3%   11,592 / 44,000
+     in 4,210  out 7,382
+   Cost        ━━━━━━━━━━━╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌  42.7%   $7.69 / $18
+   Messages    ━━╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌   8.9%   4 / 45
+   Cache       ◆ 88% hit  (31,200 read / 4,100 write)
+
+ ─────────────────────────────────────────────────────────
+
+   Time Left   ━━━━━━━━━━━━━━━╌╌╌╌╌╌╌╌╌╌╌           2h 15m
+   Models      ━━━━━━━━━━━━━━━━━━━━━━━━━━  sonnet 100%
+
+ ─────────────────────────────────────────────────────────
+
+   ⚡ Burn       386.4 tok/min       $ Rate    $0.2563/min
+   ⏱  Resets     2026-03-18 22:00 UTC
+
+   Cost by Model
+     sonnet   ━━━━━━━━━━━━ $7.6900   100%  11,592 tok
+
+ ─────────────────────────────────────────────────────────
+   Token History  ▁▂▃▄▅▆▇█▇▆▅▃▂▁▂▃▅▇█▇
+   ◉ Active session · Ctrl+C to exit
+```
+
+## Features
+
+- **53x less RAM** than the Python original via streaming typed parser
+- **Rayon parallel parsing** with post-merge dedup for large JSONL sets
+- **Delta-reload caching** in realtime mode — only re-parses changed files
+- **Input/Output token split** with cache hit indicator
+- **Plan cost limits** matching upstream (Pro $18, Max5 $35, Max20 $140)
+- **P90 auto-detection** for custom plan token limits
+- **Session view** (`--view session`) with duration, tokens, cost per session
+- **Sparkline** token history in the realtime dashboard
+- **JSON export** (`--output json`) for piping to other tools
+- **Multi-root** (`--multi-root`) aggregates all discovered Claude data directories
+- **`--since` filtering** (e.g. `--since 24h`, `--since 7d`)
+- **3 themes**: dark (default), light, classic
+
+## Install
+
+### From release binary
+
+Download from [Releases](https://github.com/Psysician/cmonitor-rs/releases):
+
+```bash
+# Linux x86_64
+curl -L https://github.com/Psysician/cmonitor-rs/releases/latest/download/cmonitor-rs-linux-x86_64 -o cmonitor-rs
+chmod +x cmonitor-rs
+sudo mv cmonitor-rs /usr/local/bin/
+```
+
+### From source
+
+```bash
+cargo install --git https://github.com/Psysician/cmonitor-rs
+```
+
+### Build locally
+
+```bash
+git clone https://github.com/Psysician/cmonitor-rs
+cd cmonitor-rs
+cargo install --path .
+```
+
+## Usage
+
+```bash
+# Realtime dashboard (default)
+cmonitor-rs
+
+# Daily/monthly table views
+cmonitor-rs --view daily
+cmonitor-rs --view monthly
+
+# Session history
+cmonitor-rs --view session
+
+# Plan selection
+cmonitor-rs --plan pro          # Token limit: 44K, Cost limit: $18
+cmonitor-rs --plan max5         # Token limit: 220K, Cost limit: $35
+cmonitor-rs --plan max20        # Token limit: 880K, Cost limit: $140
+
+# Filtering
+cmonitor-rs --since 24h         # Only files from last 24 hours
+cmonitor-rs --since 7d          # Only files from last 7 days
+
+# Export
+cmonitor-rs --output json       # JSON to stdout
+cmonitor-rs --view daily --output json
+
+# Multi-root
+cmonitor-rs --multi-root        # Aggregate all Claude data directories
+
+# Themes
+cmonitor-rs --theme dark        # Default
+cmonitor-rs --theme light
+cmonitor-rs --theme classic
+```
+
+## Architecture
+
+```
+config/       CLI parsing + last_used.json persistence
+discovery/    Claude root discovery + JSONL file enumeration
+parser/       Streaming JSONL decode + typed entry normalization + rayon parallel
+analysis/     Session blocks, limit detection, P90 custom limits
+report/       Shared renderer-neutral report state
+ui/           Realtime dashboard, table, session, sparkline renderers
+runtime/      Orchestrator, delta cache, terminal lifecycle, theme
+compat/       Upstream behavior shims
+```
 
 ## Verification
 
-- `cargo test --test parity_cli`
-- `cargo test --test parity_ingest`
-- `cargo test --test parity_analysis`
-- `cargo test --test parity_tables`
-- `cargo test --test parity_realtime`
-- `make verify`
-
-## Scope
-
-- Preserve upstream executable behavior before semantic fixes.
-- Keep the rewrite as a single crate with explicit internal module seams.
-- Use a vendored upstream oracle plus sanitized fixture homes for parity evidence.
-- Keep local Claude file analysis and terminal-first operation as the core product behavior.
-
-## Regression Guardrails
-
-- CLI parity only counts when the vendored upstream monitor runs in bundle mode from the pinned manifest; emulated fallback is a harness failure, not parity evidence.
-- Token math stays driven by typed usage entries, but zero-token `system` and `tool_result` events remain available for limit-warning detection until report assembly finishes.
-- Daily and monthly grouping must use the resolved CLI timezone for both bucket boundaries and rendered labels.
-- Realtime mode keeps terminal ownership for the full refresh loop and skips alternate-screen setup on the explicit no-data fast path.
-
-## Deferred Until Post-Parity
-
-- Alias takeover or packaging claims for `claude-monitor`, `cmonitor`, `ccmonitor`, and `ccm`.
-- Fork-only provider expansion from `Psysician/c-monitor`.
-- Safer non-TTY terminal behavior beyond the compatibility-scoped gate.
-
-## Current Architecture
-
-- `config`: CLI parsing plus `last_used.json` persistence.
-- `discovery`: Claude root discovery and JSONL file enumeration.
-- `parser`: raw JSONL decoding and typed usage-entry normalization.
-- `analysis`: session blocks, limit detection, and custom-limit math.
-- `report`: shared renderer-neutral report state.
-- `ui` and `runtime`: table rendering, realtime rendering, and terminal lifecycle.
-- `compat`: isolated upstream quirks and terminal-policy defaults.
-
-## Behavioral Invariants
-
-- Discovery records every matching Claude root but still consumes only the first discovered root until parity evidence proves a broader selection policy is safe.
-- JSONL ingestion sorts by timestamp, drops malformed and zero-token rows, and deduplicates only when both `message_id` and `request_id` are present.
-- Session blocks round start times down to UTC hours, span five hours, split on block end or five-hour inactivity, and only future-ending non-gap blocks count as active.
-- Custom-plan limits come from completed non-gap block P90, then completed sessions, then the default custom minimum.
-- Daily, monthly, and realtime surfaces all derive totals from the same report state instead of maintaining separate math.
-
-## Why The Crate Looks Like This
-
-- The rewrite stays in one crate so parity work lands behind stable module seams before any crate-splitting ceremony is introduced.
-- Compatibility shims intentionally preserve upstream quirks until fixture-backed parity is green, so user-visible differences remain measurable instead of accidental.
+```bash
+cargo test --all     # 24 parity tests
+make verify          # fmt + clippy + check + test
+```
 
 ## License
 
