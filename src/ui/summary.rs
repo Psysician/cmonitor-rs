@@ -1,9 +1,13 @@
 use crate::report::ReportState;
+use crate::ui::realtime::format_number;
 
 pub fn render_summary(report: &ReportState) -> String {
     format!(
-        "total tokens: {}\ntotal cost: {:.4}\ntotal messages: {}",
-        report.totals.total_tokens, report.totals.total_cost_usd, report.totals.total_messages
+        "{} input \u{00B7} {} output \u{00B7} ${:.4} \u{00B7} {} messages",
+        format_number(report.totals.input_tokens),
+        format_number(report.totals.output_tokens),
+        report.totals.total_cost_usd,
+        report.totals.total_messages,
     )
 }
 

@@ -33,7 +33,7 @@ fn completed_totals(blocks: &[SessionBlock]) -> Vec<u64> {
     blocks
         .iter()
         .filter(|block| !block.is_gap && !block.is_active)
-        .map(|block| block.tokens.total_tokens())
+        .map(|block| block.tokens.input_tokens + block.tokens.output_tokens)
         .filter(|total| *total > 0)
         .collect()
 }
