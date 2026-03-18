@@ -8,6 +8,10 @@ use crate::domain::{LimitEvent, SessionBlock, UsageEntry};
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct ReportTotals {
     pub total_tokens: u64,
+    pub input_tokens: u64,
+    pub output_tokens: u64,
+    pub cache_read_tokens: u64,
+    pub cache_creation_tokens: u64,
     pub total_cost_usd: f64,
     pub total_messages: usize,
 }
@@ -78,10 +82,18 @@ impl ReportState {
             .iter()
             .fold(ReportTotals::default(), |mut totals, block| {
                 totals.total_tokens += block.tokens.total_tokens();
+                totals.input_tokens += block.tokens.input_tokens;
+                totals.output_tokens += block.tokens.output_tokens;
+                totals.cache_read_tokens += block.tokens.cache_read_tokens;
+                totals.cache_creation_tokens += block.tokens.cache_creation_tokens;
                 totals.total_cost_usd += block.cost_usd;
                 totals.total_messages += block.message_count;
                 totals
             });
+
+        for block in &mut blocks {
+            block.model_stats = aggregate_per_model(&block.entries);
+        }
 
         let active_session =
             blocks
@@ -93,14 +105,17 @@ impl ReportState {
                     ends_at: block.end_time,
                     totals: ReportTotals {
                         total_tokens: block.tokens.total_tokens(),
+                        input_tokens: block.tokens.input_tokens,
+                        output_tokens: block.tokens.output_tokens,
+                        cache_read_tokens: block.tokens.cache_read_tokens,
+                        cache_creation_tokens: block.tokens.cache_creation_tokens,
                         total_cost_usd: block.cost_usd,
                         total_messages: block.message_count,
                     },
                     warnings: block.limits.clone(),
-                    per_model: aggregate_per_model(&block.entries),
+                    per_model: block.model_stats.clone(),
                     models: block.models.clone(),
                 });
-
         for block in &mut blocks {
             if !block.is_active {
                 block.entries.clear();

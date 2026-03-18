@@ -55,6 +55,7 @@ fn new_block(entry: &UsageEntry) -> SessionBlock {
         cost_usd: 0.0,
         message_count: 0,
         models: Vec::new(),
+        model_stats: Vec::new(),
     }
 }
 

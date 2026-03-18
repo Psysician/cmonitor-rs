@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 
 use crate::domain::{TokenUsage, UsageEntry};
+use crate::report::model::ModelStats;
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum LimitKind {
@@ -32,6 +33,7 @@ pub struct SessionBlock {
     pub cost_usd: f64,
     pub message_count: usize,
     pub models: Vec<String>,
+    pub model_stats: Vec<ModelStats>,
 }
 
 impl SessionBlock {
@@ -49,6 +51,7 @@ impl SessionBlock {
             cost_usd: 0.0,
             message_count: 0,
             models: Vec::new(),
+            model_stats: Vec::new(),
         }
     }
 }

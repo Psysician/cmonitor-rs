@@ -65,6 +65,10 @@ fn realtime_render_snapshot_is_deterministic() {
         limits: Vec::new(),
         totals: ReportTotals {
             total_tokens: 12,
+            input_tokens: 8,
+            output_tokens: 4,
+            cache_read_tokens: 0,
+            cache_creation_tokens: 0,
             total_cost_usd: 0.01,
             total_messages: 1,
         },
@@ -74,6 +78,10 @@ fn realtime_render_snapshot_is_deterministic() {
             ends_at: datetime!(2026-03-14 17:00 UTC),
             totals: ReportTotals {
                 total_tokens: 12,
+                input_tokens: 8,
+                output_tokens: 4,
+                cache_read_tokens: 0,
+                cache_creation_tokens: 0,
                 total_cost_usd: 0.01,
                 total_messages: 1,
             },

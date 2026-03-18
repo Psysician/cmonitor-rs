@@ -8,6 +8,7 @@ use time::macros::format_description;
 use time::{OffsetDateTime, UtcOffset};
 
 use crate::report::ReportState;
+use crate::report::model::ModelStats;
 
 static DAY_FORMAT: &[FormatItem<'static>] = format_description!("[year]-[month]-[day]");
 static MONTH_FORMAT: &[FormatItem<'static>] = format_description!("[year]-[month]");
@@ -20,6 +21,7 @@ pub struct AggregateRow {
     pub total_tokens: u64,
     pub total_cost_usd: f64,
     pub models: Vec<String>,
+    pub per_model: Vec<ModelStats>,
 }
 
 /// Carries either fixed offsets or named regions so grouping can follow the
@@ -65,12 +67,25 @@ fn build_rows(
                 total_tokens: 0,
                 total_cost_usd: 0.0,
                 models: Vec::new(),
+                per_model: Vec::new(),
             });
         row.total_tokens += block.tokens.total_tokens();
         row.total_cost_usd += block.cost_usd;
         for model in &block.models {
             if !row.models.iter().any(|existing| existing == model) {
                 row.models.push(model.clone());
+            }
+        }
+        for ms in &block.model_stats {
+            if let Some(existing) = row.per_model.iter_mut().find(|e| e.model == ms.model) {
+                existing.input_tokens += ms.input_tokens;
+                existing.output_tokens += ms.output_tokens;
+                existing.cache_creation_tokens += ms.cache_creation_tokens;
+                existing.cache_read_tokens += ms.cache_read_tokens;
+                existing.total_tokens += ms.total_tokens;
+                existing.cost_usd += ms.cost_usd;
+            } else {
+                row.per_model.push(ms.clone());
             }
         }
     }

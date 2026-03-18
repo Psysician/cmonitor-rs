@@ -32,7 +32,9 @@ where
     }
 
     match resolved.cli.view {
-        config::View::Daily | config::View::Monthly => runtime::run_table_mode(&resolved),
-        config::View::Realtime | config::View::Session => runtime::run_realtime_mode(&resolved),
+        config::View::Daily | config::View::Monthly | config::View::Session => {
+            runtime::run_table_mode(&resolved)
+        }
+        config::View::Realtime => runtime::run_realtime_mode(&resolved),
     }
 }
