@@ -3,6 +3,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 
+use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use time::format_description::well_known::Rfc3339;
@@ -274,4 +275,133 @@ fn extract_tokens_from_raw(raw: &RawLine, entry_type: &str) -> TokenUsage {
     }
 
     TokenUsage::default()
+}
+
+// ---------------------------------------------------------------------------
+// Parallel parsing
+// ---------------------------------------------------------------------------
+
+#[derive(Clone, Debug, Default)]
+pub struct ParallelParseResult {
+    pub entries: Vec<UsageEntry>,
+    pub limit_candidates: Vec<LimitCandidate>,
+    pub diagnostics: Vec<JsonlDiagnostic>,
+}
+
+pub fn parse_jsonl_files_parallel(
+    files: &[JsonlFile],
+    seen: &mut BTreeSet<DedupKey>,
+) -> ParallelParseResult {
+    let per_file: Vec<ParsedFile> = files
+        .par_iter()
+        .filter_map(|file| parse_jsonl_file_no_dedup(file).ok())
+        .collect();
+
+    let mut result = ParallelParseResult::default();
+
+    for pf in per_file {
+        result.limit_candidates.extend(pf.limit_candidates);
+        result.diagnostics.extend(pf.diagnostics);
+
+        for entry in pf.entries {
+            if let (Some(mid), Some(rid)) = (&entry.message_id, &entry.request_id) {
+                let key = DedupKey {
+                    message_id: mid.clone(),
+                    request_id: rid.clone(),
+                };
+                if !seen.insert(key) {
+                    continue;
+                }
+            }
+            result.entries.push(entry);
+        }
+    }
+
+    result
+}
+
+pub fn parse_jsonl_file_no_dedup(file: &JsonlFile) -> anyhow::Result<ParsedFile> {
+    let reader = BufReader::new(File::open(&file.path)?);
+    let mut out = ParsedFile::default();
+
+    for (index, line) in reader.lines().enumerate() {
+        let line_number = index + 1;
+        let line = line?;
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+
+        let raw: RawLine = match serde_json::from_str(trimmed) {
+            Ok(v) => v,
+            Err(error) => {
+                out.diagnostics.push(JsonlDiagnostic {
+                    source_file: file.path.clone(),
+                    line_number,
+                    message: error.to_string(),
+                });
+                continue;
+            }
+        };
+
+        let entry_type = raw.entry_type.as_deref().unwrap_or("").to_owned();
+
+        if matches!(entry_type.as_str(), "system" | "tool_result") {
+            out.limit_candidates.push(LimitCandidate {
+                source_file: file.path.clone(),
+                line_number,
+                timestamp: raw.timestamp,
+                entry_type,
+                content: raw.content,
+            });
+            continue;
+        }
+
+        let timestamp = match raw
+            .timestamp
+            .as_deref()
+            .and_then(|s| OffsetDateTime::parse(s, &Rfc3339).ok())
+        {
+            Some(ts) => ts,
+            None => continue,
+        };
+
+        let tokens = extract_tokens_from_raw(&raw, &entry_type);
+        if tokens.total_tokens() == 0 {
+            continue;
+        }
+
+        let message_id = raw
+            .message_id
+            .clone()
+            .or_else(|| raw.message.as_ref().and_then(|m| m.id.clone()));
+        let request_id = raw
+            .request_id
+            .clone()
+            .or_else(|| raw.request_id_alt.clone());
+
+        let model = raw
+            .model
+            .as_deref()
+            .or_else(|| raw.message.as_ref().and_then(|m| m.model.as_deref()))
+            .unwrap_or("unknown")
+            .to_lowercase();
+
+        let cost_usd = raw
+            .cost
+            .or_else(|| Some(calculate_entry_cost(&model, &tokens)));
+
+        out.entries.push(UsageEntry {
+            timestamp,
+            model,
+            message_id,
+            request_id,
+            tokens,
+            cost_usd,
+            source_file: file.path.clone(),
+            line_number,
+        });
+    }
+
+    Ok(out)
 }

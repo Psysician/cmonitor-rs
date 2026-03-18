@@ -13,7 +13,7 @@ impl TerminalGuard {
         if policy.force_alternate_screen {
             print!("\x1b[?1049h");
             // Immediate flush makes alternate-screen entry observable to the
-            // realtime loop and test harness. (ref: DL-004)
+            // realtime loop and test harness.
             stdout().flush()?;
         }
         Ok(Self { policy })
@@ -25,7 +25,7 @@ impl Drop for TerminalGuard {
         if self.policy.force_alternate_screen {
             print!("\x1b[?1049l");
             // Drop flushes the return escape so bounded exits and SIGINT both
-            // restore the main screen predictably. (ref: DL-004)
+            // restore the main screen predictably.
             let _ = stdout().flush();
         }
     }

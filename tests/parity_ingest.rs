@@ -56,7 +56,7 @@ fn discovery_preserves_multi_root_order_and_primary_selection() {
 #[test]
 fn jsonl_file_collection_is_recursive_and_sorted() {
     let root = fixture_path("sample-home");
-    let files = collect_jsonl_files(&root);
+    let files = collect_jsonl_files(&root, None);
     let relative_paths = files
         .iter()
         .map(|file| {

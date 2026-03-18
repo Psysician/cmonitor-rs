@@ -82,3 +82,11 @@ pub fn select_primary_root(discovery: &RootDiscovery) -> Option<&Path> {
     // proves a safe multi-root behavior change.
     discovery.selected.as_deref()
 }
+
+pub fn select_roots(discovery: &RootDiscovery) -> Vec<&Path> {
+    discovery
+        .roots
+        .iter()
+        .map(|root| root.path.as_path())
+        .collect()
+}

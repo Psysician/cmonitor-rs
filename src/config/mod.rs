@@ -38,6 +38,15 @@ pub struct CliArgs {
     #[arg(long)]
     pub log_file: Option<PathBuf>,
     #[arg(long)]
+    /// Duration string accepted by `--since` (e.g. `24h`, `7d`). Converted to
+    /// a `SystemTime` threshold in `merge_with_last_used`. Accepts hours (`h`)
+    /// and days (`d`) only. (ref: DL-003)
+    pub since: Option<String>,
+    #[arg(long, value_enum)]
+    pub output: Option<OutputFormat>,
+    #[arg(long)]
+    pub multi_root: bool,
+    #[arg(long)]
     pub debug: bool,
     #[arg(long)]
     pub clear: bool,
@@ -83,6 +92,13 @@ impl View {
             Self::Session => "session",
         }
     }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, ValueEnum)]
+#[serde(rename_all = "lowercase")]
+pub enum OutputFormat {
+    Text,
+    Json,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, ValueEnum)]
@@ -165,6 +181,11 @@ pub struct Cli {
     pub log_level: String,
     pub log_file: Option<PathBuf>,
     pub debug: bool,
+    /// Resolved mtime threshold for `--since`. `None` when `--since` was not
+    /// supplied or the value failed to parse. (ref: DL-003)
+    pub since_threshold: Option<std::time::SystemTime>,
+    pub output: OutputFormat,
+    pub multi_root: bool,
     pub clear: bool,
     pub version: bool,
 }
@@ -207,6 +228,9 @@ impl Cli {
             log_level: "INFO".to_owned(),
             log_file: None,
             debug: false,
+            since_threshold: None,
+            output: OutputFormat::Text,
+            multi_root: false,
             clear: false,
             version: false,
         }
@@ -263,6 +287,13 @@ impl CliArgs {
         cli.log_file = self.log_file;
         cli.debug = self.debug;
         cli.clear = self.clear;
+        cli.since_threshold = self.since.as_deref().and_then(|s| {
+            parse_since_duration(s)
+                .map_err(|e| eprintln!("warning: --since {}: {}", s, e))
+                .ok()
+        });
+        cli.output = self.output.unwrap_or(OutputFormat::Text);
+        cli.multi_root = self.multi_root;
         cli.version = self.version;
 
         if cli.timezone == "auto" {
@@ -394,6 +425,32 @@ fn parse_refresh_per_second(value: &str) -> Result<f64, String> {
     } else {
         Err("refresh-per-second must be between 0.1 and 20.0".to_owned())
     }
+}
+
+/// Converts a human-readable duration string into a `SystemTime` threshold.
+/// Accepts `<N>h` (hours) and `<N>d` (days). Returns the point in time that
+/// is `N` units before `SystemTime::now()`. (ref: DL-003)
+fn parse_since_duration(value: &str) -> Result<std::time::SystemTime, String> {
+    let trimmed = value.trim();
+    let (num_str, unit) = if trimmed.ends_with('h') {
+        (&trimmed[..trimmed.len() - 1], 'h')
+    } else if trimmed.ends_with('d') {
+        (&trimmed[..trimmed.len() - 1], 'd')
+    } else {
+        return Err(format!(
+            "invalid since duration {}: expected format like 24h or 7d",
+            value
+        ));
+    };
+    let n: u64 = num_str
+        .parse()
+        .map_err(|_| format!("invalid since duration {}: not a number", value))?;
+    let secs = match unit {
+        'h' => n * 3600,
+        'd' => n * 86400,
+        _ => unreachable!(),
+    };
+    Ok(std::time::SystemTime::now() - std::time::Duration::from_secs(secs))
 }
 
 fn home_dir() -> Option<PathBuf> {
