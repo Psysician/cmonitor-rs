@@ -34,6 +34,7 @@ fn build_realtime_context(cli: &Cli, report: &ReportState) -> RealtimeContext {
     RealtimeContext {
         plan_name: def.name,
         token_limit: def.token_limit,
+        cost_limit: def.cost_limit,
         message_limit: def.message_limit,
         timezone: cli.timezone.clone(),
         theme,

@@ -50,6 +50,7 @@ fn test_context() -> RealtimeContext {
     RealtimeContext {
         plan_name: "pro".to_owned(),
         token_limit: Some(44_000),
+        cost_limit: Some(18.0),
         message_limit: Some(45),
         timezone: "UTC".to_owned(),
         theme: resolve_theme(Theme::Classic),

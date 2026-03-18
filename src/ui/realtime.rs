@@ -9,6 +9,7 @@ const W: usize = 57;
 pub struct RealtimeContext {
     pub plan_name: String,
     pub token_limit: Option<u64>,
+    pub cost_limit: Option<f64>,
     pub message_limit: Option<u32>,
     pub timezone: String,
     pub theme: ThemePalette,
@@ -94,25 +95,20 @@ pub fn render_realtime(report: &ReportState, ctx: &RealtimeContext) -> String {
         output = format_number(active.totals.output_tokens),
     ));
 
-    // Cost bar
+    // Cost bar — uses plan cost limit (Pro=$18, Max5=$35, Max20=$140, Custom=$50)
     let cost = active.totals.total_cost_usd;
-    if let Some(limit) = ctx.token_limit {
-        let avg_cost_per_token = if billable_tokens > 0 {
-            cost / billable_tokens as f64
-        } else {
-            0.0
-        };
-        let estimated_max_cost = limit as f64 * avg_cost_per_token;
-        let cost_pct = if estimated_max_cost > 0.0 {
-            (cost / estimated_max_cost * 100.0).min(100.0)
+    if let Some(cost_lim) = ctx.cost_limit {
+        let cost_pct = if cost_lim > 0.0 {
+            (cost / cost_lim * 100.0).min(100.0)
         } else {
             0.0
         };
         out.push_str(&format!(
-            "   {label}Cost{reset}        {bar} {value}{pct:>5.1}%{reset}   {value}${cost:.2}{reset}\n",
-            label = t.label, value = t.value, reset = t.reset,
+            "   {label}Cost{reset}        {bar} {value}{pct:>5.1}%{reset}   {value}${cost:.2}{reset} / {dim}${lim:.0}{reset}\n",
+            label = t.label, value = t.value, dim = t.dim, reset = t.reset,
             bar = render_progress_bar(cost_pct, 26, t),
             pct = cost_pct,
+            lim = cost_lim,
         ));
     } else {
         out.push_str(&format!(
@@ -194,7 +190,7 @@ pub fn render_realtime(report: &ReportState, ctx: &RealtimeContext) -> String {
     out.push('\n');
 
     // Burn rate + Cost rate on compact lines
-    let burn = calculate_burn_rate(active.totals.total_tokens, active.started_at, ctx.now);
+    let burn = calculate_burn_rate(billable_tokens, active.started_at, ctx.now);
     let elapsed_min = (ctx.now - active.started_at).whole_seconds().max(1) as f64 / 60.0;
     let cost_rate = cost / elapsed_min;
     out.push_str(&format!(
@@ -210,19 +206,42 @@ pub fn render_realtime(report: &ReportState, ctx: &RealtimeContext) -> String {
         label = t.label, value = t.value, dim = t.dim, reset = t.reset,
     ));
 
-    // Cost by Model
+    // Cost by Model — mini table with cost share bar and token split
     if !active.per_model.is_empty() {
+        let total_cost = active.per_model.iter().map(|m| m.cost_usd).sum::<f64>().max(0.0001);
         out.push('\n');
         out.push_str(&format!(
             "   {label}Cost by Model{reset}\n",
             label = t.label, reset = t.reset,
         ));
         for m in &active.per_model {
+            let share = m.cost_usd / total_cost * 100.0;
+            let model_color = match short_model_name(&m.model) {
+                "opus" => t.bar_high,
+                "sonnet" => t.bar_mid,
+                "haiku" => t.bar_low,
+                _ => t.dim,
+            };
+            let bar_width: usize = 12;
+            let filled = ((share / 100.0) * bar_width as f64).round() as usize;
+            let empty = bar_width.saturating_sub(filled);
+            let bar = format!(
+                "{color}{filled}{track}{empty}{reset}",
+                color = model_color,
+                filled = t.bar_filled.to_string().repeat(filled),
+                track = t.bar_track,
+                empty = t.bar_empty.to_string().repeat(empty),
+                reset = t.reset,
+            );
+            let billable = m.input_tokens + m.output_tokens;
             out.push_str(&format!(
-                "     {dim}{model:<18}{reset} {value}${cost:.4}{reset}\n",
+                "     {mc}{model:<8}{reset} {bar} {value}${cost:<8.4}{reset} {dim}{share:>4.0}%  {tokens} tok{reset}\n",
+                mc = model_color,
                 model = short_model_name(&m.model),
                 cost = m.cost_usd,
-                dim = t.dim, value = t.value, reset = t.reset,
+                share = share,
+                tokens = format_number(billable),
+                value = t.value, dim = t.dim, reset = t.reset,
             ));
         }
     }

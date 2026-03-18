@@ -4,3 +4,7 @@
 *.log
 __pycache__/
 *.pyc
+.ralph/
+prompts/
+docs/
+plans/
