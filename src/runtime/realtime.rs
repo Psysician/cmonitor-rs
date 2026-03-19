@@ -28,7 +28,8 @@ fn build_realtime_context(cli: &Cli, report: &ReportState) -> RealtimeContext {
     };
 
     let custom_limit = report.custom_limit.or(cli.custom_limit_tokens.map(|v| v as u64));
-    let def = plan_definition(plan_type, custom_limit);
+    let custom_cost_limit = report.custom_cost_limit;
+    let def = plan_definition(plan_type, custom_limit, custom_cost_limit);
     let theme = resolve_theme(cli.theme);
 
     RealtimeContext {

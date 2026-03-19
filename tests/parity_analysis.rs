@@ -2,7 +2,9 @@ use std::path::PathBuf;
 
 use time::macros::datetime;
 
-use cmonitor_rs::analysis::{calculate_custom_limit, detect_limit_events, transform_to_blocks};
+use cmonitor_rs::analysis::{
+    calculate_custom_cost_limit, calculate_custom_limit, detect_limit_events, transform_to_blocks,
+};
 use cmonitor_rs::discovery::JsonlFile;
 use cmonitor_rs::domain::{TokenUsage, UsageEntry};
 use cmonitor_rs::parser::{decode_jsonl_file, normalize_usage_entries};
@@ -17,6 +19,10 @@ fn fixture_path(relative: &str) -> PathBuf {
 }
 
 fn usage_entry(timestamp: time::OffsetDateTime, total: u64) -> UsageEntry {
+    usage_entry_with_cost(timestamp, total, 0.01)
+}
+
+fn usage_entry_with_cost(timestamp: time::OffsetDateTime, total: u64, cost: f64) -> UsageEntry {
     UsageEntry {
         timestamp,
         model: "claude-3-7-sonnet-20250219".to_owned(),
@@ -28,7 +34,7 @@ fn usage_entry(timestamp: time::OffsetDateTime, total: u64) -> UsageEntry {
             cache_creation_tokens: 0,
             cache_read_tokens: 0,
         },
-        cost_usd: Some(0.01),
+        cost_usd: Some(cost),
         source_file: PathBuf::from("fixture.jsonl"),
         line_number: 1,
     }
@@ -153,4 +159,32 @@ fn p90_invariants() {
     let limit = calculate_custom_limit(&blocks).expect("limit should be calculated");
 
     assert!(limit >= 44_000);
+}
+
+#[test]
+fn custom_cost_limit_uses_completed_non_gap_p90() {
+    let entries = vec![
+        usage_entry_with_cost(datetime!(2026-03-14 00:05 UTC), 50_000, 20.0),
+        usage_entry_with_cost(datetime!(2026-03-14 06:05 UTC), 60_000, 25.0),
+        usage_entry_with_cost(datetime!(2026-03-14 12:05 UTC), 90_000, 30.0),
+    ];
+
+    let blocks = transform_to_blocks(&entries, datetime!(2026-03-15 00:00 UTC));
+    let limit = calculate_custom_cost_limit(&blocks).expect("cost limit should be calculated");
+
+    assert!(limit >= 20.0);
+}
+
+#[test]
+fn cost_p90_invariants() {
+    let entries = vec![
+        usage_entry_with_cost(datetime!(2026-03-14 00:05 UTC), 10_000, 2.0),
+        usage_entry_with_cost(datetime!(2026-03-14 06:05 UTC), 20_000, 5.0),
+        usage_entry_with_cost(datetime!(2026-03-14 12:05 UTC), 30_000, 8.0),
+    ];
+
+    let blocks = transform_to_blocks(&entries, datetime!(2026-03-15 00:00 UTC));
+    let limit = calculate_custom_cost_limit(&blocks).expect("cost limit should be calculated");
+
+    assert!(limit >= 18.0);
 }

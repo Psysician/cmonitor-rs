@@ -99,6 +99,7 @@ fn realtime_render_snapshot_is_deterministic() {
             models: vec!["claude-3-5-sonnet-20241022".to_owned()],
         }),
         custom_limit: None,
+        custom_cost_limit: None,
     };
 
     let ctx = test_context();

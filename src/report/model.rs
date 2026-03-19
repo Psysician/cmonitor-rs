@@ -46,6 +46,7 @@ pub struct ReportState {
     pub totals: ReportTotals,
     pub active_session: Option<ActiveSessionReport>,
     pub custom_limit: Option<u64>,
+    pub custom_cost_limit: Option<f64>,
 }
 
 pub fn aggregate_per_model(entries: &[UsageEntry]) -> Vec<ModelStats> {
@@ -130,6 +131,7 @@ impl ReportState {
             totals,
             active_session,
             custom_limit: None,
+            custom_cost_limit: None,
         }
     }
 }

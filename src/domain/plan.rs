@@ -18,10 +18,16 @@ pub struct PlanDefinition {
 }
 
 pub const DEFAULT_CUSTOM_MINIMUM: u64 = 44_000;
+pub const DEFAULT_CUSTOM_COST_MINIMUM: f64 = 18.0;
 pub const LIMIT_THRESHOLD: f64 = 0.90;
 pub const COMMON_TOKEN_LIMITS: [u64; 3] = [44_000, 220_000, 880_000];
+pub const COMMON_COST_LIMITS: [f64; 3] = [18.0, 35.0, 140.0];
 
-pub fn plan_definition(plan: PlanType, custom_limit: Option<u64>) -> PlanDefinition {
+pub fn plan_definition(
+    plan: PlanType,
+    custom_limit: Option<u64>,
+    custom_cost_limit: Option<f64>,
+) -> PlanDefinition {
     match plan {
         PlanType::Pro => PlanDefinition {
             name: "pro".to_owned(),
@@ -47,7 +53,7 @@ pub fn plan_definition(plan: PlanType, custom_limit: Option<u64>) -> PlanDefinit
         PlanType::Custom => PlanDefinition {
             name: "custom".to_owned(),
             token_limit: custom_limit,
-            cost_limit: Some(50.0),
+            cost_limit: custom_cost_limit.or(Some(DEFAULT_CUSTOM_COST_MINIMUM)),
             message_limit: None,
             default_custom_minimum: DEFAULT_CUSTOM_MINIMUM,
         },
