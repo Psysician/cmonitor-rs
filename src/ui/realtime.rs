@@ -1,7 +1,7 @@
 use time::OffsetDateTime;
 
-use crate::report::model::ModelStats;
 use crate::report::ReportState;
+use crate::report::model::ModelStats;
 use crate::runtime::theme::ThemePalette;
 
 const W: usize = 57;
@@ -28,9 +28,12 @@ pub fn render_realtime(report: &ReportState, ctx: &RealtimeContext) -> String {
         // ╰─────────────────────────────────────────────────────╯
         let subtitle = format!(
             "{label}{plan}{reset} {accent}{dot}{reset} {dim}{tz}{reset}",
-            label = t.label, plan = ctx.plan_name,
-            accent = t.accent, dot = t.dot,
-            dim = t.dim, tz = ctx.timezone,
+            label = t.label,
+            plan = ctx.plan_name,
+            accent = t.accent,
+            dot = t.dot,
+            dim = t.dim,
+            tz = ctx.timezone,
             reset = t.reset,
         );
         out.push_str(&render_box_line(&subtitle, W, t));
@@ -40,15 +43,18 @@ pub fn render_realtime(report: &ReportState, ctx: &RealtimeContext) -> String {
         out.push('\n');
         out.push_str(&format!(
             "   {label}No active session{reset}\n",
-            label = t.label, reset = t.reset,
+            label = t.label,
+            reset = t.reset,
         ));
         out.push_str(&format!(
             "   {dim}Waiting for Claude Code activity...{reset}\n",
-            dim = t.dim, reset = t.reset,
+            dim = t.dim,
+            reset = t.reset,
         ));
         out.push_str(&format!(
             "   {dim}Ctrl+C to exit{reset}\n",
-            dim = t.dim, reset = t.reset,
+            dim = t.dim,
+            reset = t.reset,
         ));
         return out;
     };
@@ -56,9 +62,12 @@ pub fn render_realtime(report: &ReportState, ctx: &RealtimeContext) -> String {
     // │  pro plan · UTC · ◉ active                          │
     let subtitle = format!(
         "{label}{plan}{reset} {accent}{dot}{reset} {dim}{tz}{reset} {accent}{dot}{reset} {bar_low}◉ active{reset}",
-        label = t.label, plan = ctx.plan_name,
-        accent = t.accent, dot = t.dot,
-        dim = t.dim, tz = ctx.timezone,
+        label = t.label,
+        plan = ctx.plan_name,
+        accent = t.accent,
+        dot = t.dot,
+        dim = t.dim,
+        tz = ctx.timezone,
         bar_low = t.bar_low,
         reset = t.reset,
     );
@@ -84,13 +93,16 @@ pub fn render_realtime(report: &ReportState, ctx: &RealtimeContext) -> String {
     } else {
         out.push_str(&format!(
             "   {label}Tokens{reset}      {value}{used}{reset}\n",
-            label = t.label, value = t.value, reset = t.reset,
+            label = t.label,
+            value = t.value,
+            reset = t.reset,
             used = format_number(billable_tokens),
         ));
     }
     out.push_str(&format!(
         "   {dim}  in {input}  out {output}{reset}\n",
-        dim = t.dim, reset = t.reset,
+        dim = t.dim,
+        reset = t.reset,
         input = format_number(active.totals.input_tokens),
         output = format_number(active.totals.output_tokens),
     ));
@@ -113,7 +125,9 @@ pub fn render_realtime(report: &ReportState, ctx: &RealtimeContext) -> String {
     } else {
         out.push_str(&format!(
             "   {label}Cost{reset}        {value}${cost:.2}{reset}\n",
-            label = t.label, value = t.value, reset = t.reset,
+            label = t.label,
+            value = t.value,
+            reset = t.reset,
         ));
     }
 
@@ -130,7 +144,9 @@ pub fn render_realtime(report: &ReportState, ctx: &RealtimeContext) -> String {
     } else {
         out.push_str(&format!(
             "   {label}Messages{reset}    {value}{used}{reset}\n",
-            label = t.label, value = t.value, reset = t.reset,
+            label = t.label,
+            value = t.value,
+            reset = t.reset,
             used = active.totals.total_messages,
         ));
     }
@@ -160,9 +176,12 @@ pub fn render_realtime(report: &ReportState, ctx: &RealtimeContext) -> String {
     let time_pct = (elapsed_secs / total_secs * 100.0).min(100.0);
     out.push_str(&format!(
         "   {label}Time Left{reset}   {bar}           {value}{h}h {m}m{reset}\n",
-        label = t.label, value = t.value, reset = t.reset,
+        label = t.label,
+        value = t.value,
+        reset = t.reset,
         bar = render_progress_bar(time_pct, 26, t),
-        h = hours, m = minutes,
+        h = hours,
+        m = minutes,
     ));
 
     // Model split
@@ -179,7 +198,9 @@ pub fn render_realtime(report: &ReportState, ctx: &RealtimeContext) -> String {
             .collect();
         out.push_str(&format!(
             "   {label}Models{reset}      {bar}  {dim}{legend}{reset}\n",
-            label = t.label, dim = t.dim, reset = t.reset,
+            label = t.label,
+            dim = t.dim,
+            reset = t.reset,
             legend = legend.join(" {dot} "),
         ));
     }
@@ -203,16 +224,25 @@ pub fn render_realtime(report: &ReportState, ctx: &RealtimeContext) -> String {
     let resets_at = format_reset_time(active.ends_at, &ctx.timezone);
     out.push_str(&format!(
         "   {dim}⏱{reset} {label}Resets{reset}      {value}{resets_at}{reset}\n",
-        label = t.label, value = t.value, dim = t.dim, reset = t.reset,
+        label = t.label,
+        value = t.value,
+        dim = t.dim,
+        reset = t.reset,
     ));
 
     // Cost by Model — mini table with cost share bar and token split
     if !active.per_model.is_empty() {
-        let total_cost = active.per_model.iter().map(|m| m.cost_usd).sum::<f64>().max(0.0001);
+        let total_cost = active
+            .per_model
+            .iter()
+            .map(|m| m.cost_usd)
+            .sum::<f64>()
+            .max(0.0001);
         out.push('\n');
         out.push_str(&format!(
             "   {label}Cost by Model{reset}\n",
-            label = t.label, reset = t.reset,
+            label = t.label,
+            reset = t.reset,
         ));
         for m in &active.per_model {
             let share = m.cost_usd / total_cost * 100.0;
@@ -252,7 +282,9 @@ pub fn render_realtime(report: &ReportState, ctx: &RealtimeContext) -> String {
         for w in &active.warnings {
             out.push_str(&format!(
                 "   {warn}⚠ {msg}{reset}\n",
-                warn = t.warning, msg = w.message, reset = t.reset,
+                warn = t.warning,
+                msg = w.message,
+                reset = t.reset,
             ));
         }
     }
@@ -262,7 +294,10 @@ pub fn render_realtime(report: &ReportState, ctx: &RealtimeContext) -> String {
     out.push('\n');
     out.push_str(&format!(
         "   {bar_low}◉{reset} {dim}Active session {dot} Ctrl+C to exit{reset}\n",
-        bar_low = t.bar_low, dim = t.dim, dot = t.dot, reset = t.reset,
+        bar_low = t.bar_low,
+        dim = t.dim,
+        dot = t.dot,
+        reset = t.reset,
     ));
 
     out

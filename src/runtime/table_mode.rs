@@ -38,11 +38,19 @@ pub fn run_table_mode(resolved: &ResolvedConfig) -> anyhow::Result<ExitCode> {
         // title describe the same calendar boundary.
         View::Monthly => println!(
             "{}",
-            table::render_table(&title, &build_monthly_rows(&report, &resolved.cli.timezone), &theme)
+            table::render_table(
+                &title,
+                &build_monthly_rows(&report, &resolved.cli.timezone),
+                &theme
+            )
         ),
         _ => println!(
             "{}",
-            table::render_table(&title, &build_daily_rows(&report, &resolved.cli.timezone), &theme)
+            table::render_table(
+                &title,
+                &build_daily_rows(&report, &resolved.cli.timezone),
+                &theme
+            )
         ),
     }
     Ok(ExitCode::SUCCESS)

@@ -24,7 +24,11 @@ pub fn render_table(title: &str, rows: &[AggregateRow], theme: &ThemePalette) ->
     // Column headers
     out.push_str(&format!(
         "   {dim}{:<14} {:>9} {:>9} {:>10}    {:<}{reset}\n",
-        "Date", "Input", "Output", "Cost", "Models",
+        "Date",
+        "Input",
+        "Output",
+        "Cost",
+        "Models",
         dim = t.dim,
         reset = t.reset,
     ));

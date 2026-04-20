@@ -52,15 +52,17 @@ pub struct ReportState {
 pub fn aggregate_per_model(entries: &[UsageEntry]) -> Vec<ModelStats> {
     let mut map: BTreeMap<String, ModelStats> = BTreeMap::new();
     for entry in entries {
-        let stats = map.entry(entry.model.clone()).or_insert_with(|| ModelStats {
-            model: entry.model.clone(),
-            input_tokens: 0,
-            output_tokens: 0,
-            cache_creation_tokens: 0,
-            cache_read_tokens: 0,
-            total_tokens: 0,
-            cost_usd: 0.0,
-        });
+        let stats = map
+            .entry(entry.model.clone())
+            .or_insert_with(|| ModelStats {
+                model: entry.model.clone(),
+                input_tokens: 0,
+                output_tokens: 0,
+                cache_creation_tokens: 0,
+                cache_read_tokens: 0,
+                total_tokens: 0,
+                cost_usd: 0.0,
+            });
         stats.input_tokens += entry.tokens.input_tokens;
         stats.output_tokens += entry.tokens.output_tokens;
         stats.cache_creation_tokens += entry.tokens.cache_creation_tokens;

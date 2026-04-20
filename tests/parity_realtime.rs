@@ -3,9 +3,9 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use cmonitor_rs::config::Theme;
 use cmonitor_rs::report::{ActiveSessionReport, ReportState, ReportTotals};
 use cmonitor_rs::runtime::theme::resolve_theme;
-use cmonitor_rs::config::Theme;
 use cmonitor_rs::ui::realtime::{RealtimeContext, render_realtime};
 use time::macros::datetime;
 

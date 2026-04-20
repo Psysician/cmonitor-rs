@@ -6,8 +6,8 @@ use std::path::PathBuf;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
+use time::format_description::well_known::Rfc3339;
 
 use crate::discovery::JsonlFile;
 use crate::domain::pricing::calculate_entry_cost;
@@ -267,9 +267,7 @@ fn extract_tokens_from_raw(raw: &RawLine, entry_type: &str) -> TokenUsage {
                 cache_creation_tokens: source
                     .cache_creation_tokens
                     .max(source.cache_creation_input_tokens),
-                cache_read_tokens: source
-                    .cache_read_input_tokens
-                    .max(source.cache_read_tokens),
+                cache_read_tokens: source.cache_read_input_tokens.max(source.cache_read_tokens),
             };
         }
     }

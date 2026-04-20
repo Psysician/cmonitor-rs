@@ -5,8 +5,8 @@ use serde_json::Value;
 use time::OffsetDateTime;
 use time::format_description::well_known::Rfc3339;
 
-use crate::domain::{TokenUsage, UsageEntry};
 use crate::domain::pricing::calculate_entry_cost;
+use crate::domain::{TokenUsage, UsageEntry};
 use crate::parser::jsonl::{DecodedJsonl, RawUsageEvent};
 
 pub use crate::parser::jsonl::DedupKey;
