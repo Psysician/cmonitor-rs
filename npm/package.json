@@ -1,0 +1,21 @@
+{
+  "name": "cmonitor-rs",
+  "version": "0.1.0",
+  "description": "Claude Code usage monitor — fast Rust CLI",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Psysician/cmonitor-rs"
+  },
+  "homepage": "https://github.com/Psysician/cmonitor-rs",
+  "keywords": ["claude", "monitor", "usage", "cli", "anthropic"],
+  "bin": {
+    "cmonitor-rs": "bin/run.js"
+  },
+  "scripts": {
+    "postinstall": "node install.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
