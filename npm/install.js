@@ -60,7 +60,8 @@ async function install() {
       `Expand-Archive -Path '${tmp}' -DestinationPath '${BIN_DIR}' -Force`
     ]);
   } else {
-    spawnSync('tar', ['-xzf', tmp, '-C', BIN_DIR], { stdio: 'inherit' });
+    const r = spawnSync('tar', ['-xzf', tmp, '-C', BIN_DIR], { stdio: 'inherit' });
+    if (r.status !== 0) throw new Error(`tar exited with ${r.status}`);
   }
 
   fs.unlinkSync(tmp);
