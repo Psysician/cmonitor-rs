@@ -48,14 +48,12 @@ fn collect(
             .extension()
             .is_some_and(|extension| extension == "jsonl")
         {
-            if let Some(threshold) = since_threshold {
-                if let Ok(metadata) = entry.metadata() {
-                    if let Ok(mtime) = metadata.modified() {
-                        if mtime < threshold {
-                            continue;
-                        }
-                    }
-                }
+            if let Some(threshold) = since_threshold
+                && let Ok(metadata) = entry.metadata()
+                && let Ok(mtime) = metadata.modified()
+                && mtime < threshold
+            {
+                continue;
             }
             files.push(JsonlFile {
                 root: root.to_path_buf(),

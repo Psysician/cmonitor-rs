@@ -19,4 +19,5 @@ Repository root holds package metadata, top-level docs, and directory entrypoint
 | `README.md` | Product scope, parity guarantees, and architectural rationale | Understanding the shipped behavior or release positioning |
 | `rust-toolchain.toml` | Pinned Rust toolchain version | Aligning compiler and tooling expectations |
 | `src/` | Crate entrypoints and implementation modules | Tracing runtime behavior or changing code paths |
+| `npm/` | npm package for binary distribution (postinstall downloader + runner) | Updating npm release or install behaviour |
 | `tests/` | Parity suites, fixtures, snapshots, and oracle assets | Updating regression coverage or fixture evidence |

@@ -27,7 +27,11 @@ pub fn render_sparkline(values: &[u64], width: usize) -> String {
                 let end = ((i + 1) as f64 * step) as usize;
                 let end = end.min(values.len());
                 let slice = &values[start..end];
-                if slice.is_empty() { 0 } else { *slice.iter().max().unwrap_or(&0) }
+                if slice.is_empty() {
+                    0
+                } else {
+                    *slice.iter().max().unwrap_or(&0)
+                }
             })
             .collect()
     } else {
@@ -35,9 +39,12 @@ pub fn render_sparkline(values: &[u64], width: usize) -> String {
     };
 
     let pad_count = width.saturating_sub(display.len());
-    let sparkline: String = display.iter().map(|&v| {
-        let idx = ((v as f64 / max as f64) * (BLOCKS.len() - 1) as f64).round() as usize;
-        BLOCKS[idx.min(BLOCKS.len() - 1)]
-    }).collect();
+    let sparkline: String = display
+        .iter()
+        .map(|&v| {
+            let idx = ((v as f64 / max as f64) * (BLOCKS.len() - 1) as f64).round() as usize;
+            BLOCKS[idx.min(BLOCKS.len() - 1)]
+        })
+        .collect();
     format!("{}{}", " ".repeat(pad_count), sparkline)
 }

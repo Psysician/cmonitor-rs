@@ -27,7 +27,9 @@ fn build_realtime_context(cli: &Cli, report: &ReportState) -> RealtimeContext {
         Plan::Custom => PlanType::Custom,
     };
 
-    let custom_limit = report.custom_limit.or(cli.custom_limit_tokens.map(|v| v as u64));
+    let custom_limit = report
+        .custom_limit
+        .or(cli.custom_limit_tokens.map(|v| v as u64));
     let custom_cost_limit = report.custom_cost_limit;
     let def = plan_definition(plan_type, custom_limit, custom_cost_limit);
     let theme = resolve_theme(cli.theme);
@@ -125,7 +127,12 @@ where
 
 /// Flushes each frame immediately because alternate-screen teardown happens on
 /// guard drop rather than at print boundaries.
-fn render_frame<W>(out: &mut W, report: &ReportState, ctx: &RealtimeContext, spark: &str) -> anyhow::Result<()>
+fn render_frame<W>(
+    out: &mut W,
+    report: &ReportState,
+    ctx: &RealtimeContext,
+    spark: &str,
+) -> anyhow::Result<()>
 where
     W: Write,
 {

@@ -37,7 +37,13 @@ pub fn render_session_table(report: &ReportState, theme: &ThemePalette) -> Strin
     // Column headers
     out.push_str(&format!(
         "   {dim}{:<4} {:<20} {:>10} {:>10} {:>10} {:>5}  {:<}{reset}\n",
-        "#", "Started", "Duration", "Tokens", "Cost", "Msgs", "Models",
+        "#",
+        "Started",
+        "Duration",
+        "Tokens",
+        "Cost",
+        "Msgs",
+        "Models",
         dim = t.dim,
         reset = t.reset,
     ));
@@ -76,7 +82,11 @@ pub fn render_session_table(report: &ReportState, theme: &ThemePalette) -> Strin
         let cost = format!("${:.4}", block.cost_usd);
         let models: Vec<&str> = block.models.iter().map(|m| short_model(m)).collect();
         let active_marker = if block.is_active {
-            format!(" {bar_low}\u{25C9}{reset}", bar_low = t.bar_low, reset = t.reset)
+            format!(
+                " {bar_low}\u{25C9}{reset}",
+                bar_low = t.bar_low,
+                reset = t.reset
+            )
         } else {
             String::new()
         };

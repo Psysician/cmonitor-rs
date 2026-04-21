@@ -432,10 +432,10 @@ fn parse_refresh_per_second(value: &str) -> Result<f64, String> {
 /// is `N` units before `SystemTime::now()`. (ref: DL-003)
 fn parse_since_duration(value: &str) -> Result<std::time::SystemTime, String> {
     let trimmed = value.trim();
-    let (num_str, unit) = if trimmed.ends_with('h') {
-        (&trimmed[..trimmed.len() - 1], 'h')
-    } else if trimmed.ends_with('d') {
-        (&trimmed[..trimmed.len() - 1], 'd')
+    let (num_str, unit) = if let Some(s) = trimmed.strip_suffix('h') {
+        (s, 'h')
+    } else if let Some(s) = trimmed.strip_suffix('d') {
+        (s, 'd')
     } else {
         return Err(format!(
             "invalid since duration {}: expected format like 24h or 7d",
