@@ -31,6 +31,12 @@ impl DeltaCache {
     }
 }
 
+impl Default for DeltaCache {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Loads report state from JSONL files under the primary discovered root.
 ///
 /// When `delta_cache` is `Some`, files with an unchanged mtime reuse their
@@ -68,14 +74,13 @@ pub fn load_report_state(
             let mut files_to_parse = Vec::new();
             for file in &files {
                 let mtime = file.path.metadata().ok().and_then(|m| m.modified().ok());
-                if let Some(mt) = mtime {
-                    if let Some((cached_mt, pf)) = cache.entries.get(&file.path) {
-                        if *cached_mt == mt {
-                            all_entries.extend(pf.entries.clone());
-                            all_limit_candidates.extend(pf.limit_candidates.clone());
-                            continue;
-                        }
-                    }
+                if let Some(mt) = mtime
+                    && let Some((cached_mt, pf)) = cache.entries.get(&file.path)
+                    && *cached_mt == mt
+                {
+                    all_entries.extend(pf.entries.clone());
+                    all_limit_candidates.extend(pf.limit_candidates.clone());
+                    continue;
                 }
                 files_to_parse.push((file.clone(), mtime));
             }
