@@ -33,6 +33,9 @@ jobs:
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             artifact: cmonitor-rs-windows-amd64
+          - os: windows-latest
+            target: aarch64-pc-windows-msvc
+            artifact: cmonitor-rs-windows-arm64
     steps:
       - uses: actions/checkout@v4
 
