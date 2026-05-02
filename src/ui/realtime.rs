@@ -1,10 +1,10 @@
-use time::OffsetDateTime;
+use time::{Duration, OffsetDateTime};
 
 use crate::report::model::ModelStats;
 use crate::report::ReportState;
 use crate::runtime::theme::ThemePalette;
 
-const W: usize = 57;
+const W: usize = 72;
 
 pub struct RealtimeContext {
     pub plan_name: String,
@@ -169,10 +169,12 @@ pub fn render_realtime(report: &ReportState, ctx: &RealtimeContext) -> String {
     out.push('\n');
     out.push('\n');
 
-    // Time remaining
-    let (hours, minutes) = time_remaining(active.ends_at, ctx.now);
-    let total_secs = (active.ends_at - active.started_at).whole_seconds().max(1) as f64;
-    let elapsed_secs = (ctx.now - active.started_at).whole_seconds().max(0) as f64;
+    // Time remaining — based on current 10-minute rate limit window
+    let current_reset = next_10min_boundary(ctx.now);
+    let window_start = current_reset - Duration::minutes(10);
+    let (hours, minutes) = time_remaining(current_reset, ctx.now);
+    let total_secs = 600.0_f64;
+    let elapsed_secs = (ctx.now - window_start).whole_seconds().max(0) as f64;
     let time_pct = (elapsed_secs / total_secs * 100.0).min(100.0);
     out.push_str(&format!(
         "   {label}Time Left{reset}   {bar}           {value}{h}h {m}m{reset}\n",
@@ -220,8 +222,9 @@ pub fn render_realtime(report: &ReportState, ctx: &RealtimeContext) -> String {
         rate = cost_rate,
     ));
 
-    // Reset time
-    let resets_at = format_reset_time(active.ends_at, &ctx.timezone);
+    // Reset time — next 10-minute boundary from now
+    let next_reset = next_10min_boundary(ctx.now);
+    let resets_at = format_reset_time(next_reset, &ctx.timezone);
     out.push_str(&format!(
         "   {dim}⏱{reset} {label}Resets{reset}      {value}{resets_at}{reset}\n",
         label = t.label,
@@ -480,6 +483,13 @@ fn render_divider(width: usize, theme: &ThemePalette) -> String {
         line = theme.box_h.to_string().repeat(width),
         reset = theme.reset,
     )
+}
+
+fn next_10min_boundary(now: OffsetDateTime) -> OffsetDateTime {
+    let unix = now.unix_timestamp();
+    let window = 600_i64;
+    let next = ((unix / window) + 1) * window;
+    OffsetDateTime::from_unix_timestamp(next).expect("10min boundary should be valid")
 }
 
 fn strip_ansi_len(s: &str) -> usize {
