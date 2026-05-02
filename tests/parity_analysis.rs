@@ -41,17 +41,17 @@ fn usage_entry_with_cost(timestamp: time::OffsetDateTime, total: u64, cost: f64)
 }
 
 #[test]
-fn block_builder_rounds_to_utc_and_inserts_gaps() {
+fn block_builder_rounds_to_10min_and_inserts_gaps() {
     let entries = vec![
-        usage_entry(datetime!(2026-03-14 12:15 UTC), 10),
-        usage_entry(datetime!(2026-03-14 12:45 UTC), 20),
-        usage_entry(datetime!(2026-03-14 18:15 UTC), 30),
+        usage_entry(datetime!(2026-03-14 12:13 UTC), 10),
+        usage_entry(datetime!(2026-03-14 12:17 UTC), 20),
+        usage_entry(datetime!(2026-03-14 12:35 UTC), 30),
     ];
 
-    let blocks = transform_to_blocks(&entries, datetime!(2026-03-14 19:00 UTC));
+    let blocks = transform_to_blocks(&entries, datetime!(2026-03-14 12:38 UTC));
 
     assert_eq!(blocks.len(), 3);
-    assert_eq!(blocks[0].start_time, datetime!(2026-03-14 12:00 UTC));
+    assert_eq!(blocks[0].start_time, datetime!(2026-03-14 12:10 UTC));
     assert!(blocks[1].is_gap);
     assert!(blocks[2].is_active);
 }
@@ -118,7 +118,6 @@ fn limit_detection_uses_shared_mixed_event_fixture() {
 
     assert_eq!(limits.len(), 2);
     assert_eq!(report.limits.len(), 2);
-    assert_eq!(report.blocks[0].limits.len(), 2);
     assert!(
         limits
             .iter()

@@ -2,7 +2,7 @@ use time::{Duration, OffsetDateTime, UtcOffset};
 
 use crate::domain::{SessionBlock, TokenUsage, UsageEntry};
 
-pub const SESSION_WINDOW_HOURS: i64 = 5;
+pub const SESSION_WINDOW_MINUTES: i64 = 10;
 
 pub fn transform_to_blocks(entries: &[UsageEntry], now: OffsetDateTime) -> Vec<SessionBlock> {
     if entries.is_empty() {
@@ -15,14 +15,14 @@ pub fn transform_to_blocks(entries: &[UsageEntry], now: OffsetDateTime) -> Vec<S
     for entry in entries.iter().cloned() {
         let should_roll = entry.timestamp >= current.end_time
             || current.entries.last().is_some_and(|last| {
-                entry.timestamp - last.timestamp >= Duration::hours(SESSION_WINDOW_HOURS)
+                entry.timestamp - last.timestamp >= Duration::minutes(SESSION_WINDOW_MINUTES)
             });
 
         if should_roll {
             finalize_block(&mut current, now);
             if let Some(last_end) = current.actual_end_time {
                 blocks.push(current);
-                if entry.timestamp - last_end >= Duration::hours(SESSION_WINDOW_HOURS) {
+                if entry.timestamp - last_end >= Duration::minutes(SESSION_WINDOW_MINUTES) {
                     blocks.push(SessionBlock::empty_gap(last_end, entry.timestamp));
                 }
                 current = new_block(&entry);
@@ -41,11 +41,11 @@ pub fn transform_to_blocks(entries: &[UsageEntry], now: OffsetDateTime) -> Vec<S
 }
 
 fn new_block(entry: &UsageEntry) -> SessionBlock {
-    let start_time = round_down_to_utc_hour(entry.timestamp);
+    let start_time = round_down_to_10min(entry.timestamp);
     SessionBlock {
         id: start_time.unix_timestamp().to_string(),
         start_time,
-        end_time: start_time + Duration::hours(SESSION_WINDOW_HOURS),
+        end_time: start_time + Duration::minutes(SESSION_WINDOW_MINUTES),
         actual_end_time: None,
         is_gap: false,
         is_active: false,
@@ -77,9 +77,10 @@ fn finalize_block(block: &mut SessionBlock, now: OffsetDateTime) {
     block.is_active = !block.is_gap && block.end_time > now;
 }
 
-fn round_down_to_utc_hour(timestamp: OffsetDateTime) -> OffsetDateTime {
+fn round_down_to_10min(timestamp: OffsetDateTime) -> OffsetDateTime {
     let utc = timestamp.to_offset(UtcOffset::UTC);
-    let offset = i64::from(utc.minute()) * 60 + i64::from(utc.second());
+    let minute_remainder = i64::from(utc.minute() % 10);
+    let offset = minute_remainder * 60 + i64::from(utc.second());
     OffsetDateTime::from_unix_timestamp(utc.unix_timestamp() - offset)
         .expect("rounded timestamp should be valid")
 }
