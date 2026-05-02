@@ -28,9 +28,29 @@ const HAIKU_RATES: ModelRates = ModelRates {
     cache_read: 0.025,
 };
 
+const MYTHOS_PREVIEW_RATES: ModelRates = ModelRates {
+    input: 25.0,
+    output: 125.0,
+    cache_create: 31.25,
+    cache_read: 2.50,
+};
+
+const MYTHOS_RATES: ModelRates = ModelRates {
+    input: 25.0,
+    output: 125.0,
+    cache_create: 31.25,
+    cache_read: 2.50,
+};
+
 fn rates_for_model(model: &str) -> &'static ModelRates {
     let lower = model.to_lowercase();
-    if lower.contains("opus") {
+    if lower.contains("mythos") {
+        if lower.contains("preview") {
+            &MYTHOS_PREVIEW_RATES
+        } else {
+            &MYTHOS_RATES
+        }
+    } else if lower.contains("opus") {
         &OPUS_RATES
     } else if lower.contains("haiku") {
         &HAIKU_RATES

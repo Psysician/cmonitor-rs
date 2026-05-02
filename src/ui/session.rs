@@ -122,7 +122,9 @@ pub fn format_block_time(ts: OffsetDateTime) -> String {
 }
 
 fn short_model(model: &str) -> &str {
-    if model.contains("opus") {
+    if model.contains("mythos") {
+        "mythos"
+    } else if model.contains("opus") {
         "opus"
     } else if model.contains("sonnet") {
         "sonnet"

@@ -69,7 +69,9 @@ pub fn render_table(title: &str, rows: &[AggregateRow], theme: &ThemePalette) ->
 }
 
 fn short_model_display(model: &str) -> &str {
-    if model.contains("opus") {
+    if model.contains("mythos") {
+        "mythos"
+    } else if model.contains("opus") {
         "opus"
     } else if model.contains("sonnet") {
         "sonnet"

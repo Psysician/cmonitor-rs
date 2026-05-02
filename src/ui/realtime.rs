@@ -1,7 +1,7 @@
 use time::OffsetDateTime;
 
-use crate::report::ReportState;
 use crate::report::model::ModelStats;
+use crate::report::ReportState;
 use crate::runtime::theme::ThemePalette;
 
 const W: usize = 57;
@@ -247,7 +247,7 @@ pub fn render_realtime(report: &ReportState, ctx: &RealtimeContext) -> String {
         for m in &active.per_model {
             let share = m.cost_usd / total_cost * 100.0;
             let model_color = match short_model_name(&m.model) {
-                "opus" => t.bar_high,
+                "mythos" | "opus" => t.bar_high,
                 "sonnet" => t.bar_mid,
                 "haiku" => t.bar_low,
                 _ => t.dim,
@@ -338,7 +338,7 @@ fn render_model_split_bar(
 
     for (i, m) in per_model.iter().enumerate() {
         let color = match short_model_name(&m.model) {
-            "opus" => theme.bar_high,
+            "mythos" | "opus" => theme.bar_high,
             "sonnet" => theme.bar_mid,
             "haiku" => theme.bar_low,
             _ => theme.dim,
@@ -402,7 +402,9 @@ fn usage_pct(used: u64, limit: u64) -> f64 {
 }
 
 fn short_model_name(model: &str) -> &str {
-    if model.contains("opus") {
+    if model.contains("mythos") {
+        "mythos"
+    } else if model.contains("opus") {
         "opus"
     } else if model.contains("haiku") {
         "haiku"
