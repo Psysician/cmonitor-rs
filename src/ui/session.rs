@@ -1,19 +1,19 @@
-use time::OffsetDateTime;
-
 use crate::report::ReportState;
 use crate::runtime::theme::ThemePalette;
 use crate::ui::realtime::format_number;
+use crate::ui::timezone::format_datetime_seconds;
 
-pub fn render_session_table(report: &ReportState, theme: &ThemePalette) -> String {
+pub fn render_session_table(report: &ReportState, theme: &ThemePalette, timezone: &str) -> String {
     let t = theme;
-    let w = 57;
+    let w = 80;
     let mut out = String::new();
 
     // Title + divider
     out.push_str(&format!(
-        "\n {bold}{header}Session View{reset}\n",
+        "\n {bold}{header}Session View ({timezone}){reset}\n",
         bold = t.bold,
         header = t.header,
+        timezone = timezone,
         reset = t.reset,
     ));
     out.push_str(&format!(
@@ -36,10 +36,11 @@ pub fn render_session_table(report: &ReportState, theme: &ThemePalette) -> Strin
 
     // Column headers
     out.push_str(&format!(
-        "   {dim}{:<4} {:<20} {:>10} {:>10} {:>10} {:>5}  {:<}{reset}\n",
+        "   {dim}{:<4} {:<19} {:<19} {:>8} {:>10} {:>9} {:>5}  {:<}{reset}\n",
         "#",
         "Started",
-        "Duration",
+        "Ends",
+        "Window",
         "Tokens",
         "Cost",
         "Msgs",
@@ -48,12 +49,13 @@ pub fn render_session_table(report: &ReportState, theme: &ThemePalette) -> Strin
         reset = t.reset,
     ));
     out.push_str(&format!(
-        "   {accent}{:<4} {:<20} {:>10} {:>10} {:>10} {:>5}  {:<}{reset}\n",
+        "   {accent}{:<4} {:<19} {:<19} {:>8} {:>10} {:>9} {:>5}  {:<}{reset}\n",
         "\u{2500}\u{2500}\u{2500}\u{2500}",
-        "\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}",
+        "\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}",
+        "\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}",
+        "\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}",
         "\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}",
-        "\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}",
-        "\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}",
+        "\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}",
         "\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}",
         "\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}",
         accent = t.accent,
@@ -62,22 +64,9 @@ pub fn render_session_table(report: &ReportState, theme: &ThemePalette) -> Strin
 
     for (i, block) in sessions.iter().enumerate() {
         let idx = i + 1;
-        let started = format_block_time(block.start_time);
-        let duration = match block.actual_end_time {
-            Some(end) => {
-                let dur = end - block.start_time;
-                let total_secs = dur.whole_seconds().max(0);
-                let hours = total_secs / 3600;
-                let minutes = (total_secs % 3600) / 60;
-                let seconds = total_secs % 60;
-                if hours > 0 {
-                    format!("{}h {:02}m {:02}s", hours, minutes, seconds)
-                } else {
-                    format!("{:02}m {:02}s", minutes, seconds)
-                }
-            }
-            None => "-".to_string(),
-        };
+        let started = format_block_time(block.start_time, timezone);
+        let ends = format_block_time(block.end_time, timezone);
+        let duration = format_duration(block.end_time - block.start_time);
         let total_tokens = format_number(block.tokens.total_tokens());
         let cost = format!("${:.4}", block.cost_usd);
         let models: Vec<&str> = block.models.iter().map(|m| short_model(m)).collect();
@@ -92,9 +81,10 @@ pub fn render_session_table(report: &ReportState, theme: &ThemePalette) -> Strin
         };
 
         out.push_str(&format!(
-            "   {dim}{:<4}{reset} {value}{:<20}{reset} {:>10} {:>10} {:>10} {:>5}  {dim}{}{reset}{active_marker}\n",
+            "   {dim}{:<4}{reset} {value}{:<19}{reset} {value}{:<19}{reset} {:>8} {:>10} {:>9} {:>5}  {dim}{}{reset}{active_marker}\n",
             idx,
             started,
+            ends,
             duration,
             total_tokens,
             cost,
@@ -109,16 +99,22 @@ pub fn render_session_table(report: &ReportState, theme: &ThemePalette) -> Strin
     out
 }
 
-pub fn format_block_time(ts: OffsetDateTime) -> String {
-    format!(
-        "{:04}-{:02}-{:02} {:02}:{:02}:{:02}",
-        ts.year(),
-        ts.month() as u8,
-        ts.day(),
-        ts.hour(),
-        ts.minute(),
-        ts.second(),
-    )
+pub fn format_block_time(ts: time::OffsetDateTime, timezone: &str) -> String {
+    format_datetime_seconds(ts, timezone)
+}
+
+fn format_duration(duration: time::Duration) -> String {
+    let total_secs = duration.whole_seconds().max(0);
+    let hours = total_secs / 3600;
+    let minutes = (total_secs % 3600) / 60;
+    let seconds = total_secs % 60;
+    if hours > 0 {
+        format!("{}h {:02}m", hours, minutes)
+    } else if seconds > 0 {
+        format!("{:02}m {:02}s", minutes, seconds)
+    } else {
+        format!("{:02}m", minutes)
+    }
 }
 
 fn short_model(model: &str) -> &str {

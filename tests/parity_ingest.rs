@@ -6,7 +6,7 @@ use serde_json::Value;
 use time::macros::datetime;
 
 use cmonitor_rs::discovery::{JsonlFile, RootSource, collect_jsonl_files, discover_roots_with};
-use cmonitor_rs::parser::{decode_jsonl_file, normalize_usage_entries};
+use cmonitor_rs::parser::{DedupKey, decode_jsonl_file, normalize_usage_entries, parse_jsonl_file};
 
 fn fixture_path(relative: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -104,11 +104,11 @@ fn malformed_lines_zero_token_filtering_dedupe_and_cutoff_match_fixture_expectat
         .filter(|event| {
             matches!(
                 event.payload.get("type").and_then(Value::as_str),
-                Some("system" | "tool_result")
+                Some("system" | "tool_result" | "assistant")
             )
         })
         .collect::<Vec<_>>();
-    assert_eq!(preserved_warnings.len(), 2);
+    assert_eq!(preserved_warnings.len(), 3);
     assert_eq!(normalized.entries[0].model, "claude-3-5-haiku-20241022");
     assert_eq!(normalized.entries[0].tokens.total_tokens(), 11);
     assert_eq!(normalized.entries[1].message_id.as_deref(), Some("m-1"));
@@ -150,5 +150,25 @@ fn parser_invariants() {
             event.payload.get("type").and_then(Value::as_str),
             Some("system")
         )
+    }));
+}
+
+#[test]
+fn typed_parser_preserves_assistant_rate_limit_errors_without_usage_tokens() {
+    let path = fixture_path("mixed-events.jsonl");
+    let mut seen = std::collections::BTreeSet::<DedupKey>::new();
+    let parsed = parse_jsonl_file(
+        &JsonlFile {
+            root: path.parent().expect("fixture parent").to_path_buf(),
+            path,
+        },
+        &mut seen,
+    )
+    .expect("fixture jsonl should parse");
+
+    assert!(parsed.limit_candidates.iter().any(|candidate| {
+        candidate.entry_type == "assistant"
+            && candidate.error.as_deref() == Some("rate_limit")
+            && candidate.api_error_status == Some(429)
     }));
 }

@@ -98,27 +98,27 @@ impl ReportState {
             block.model_stats = aggregate_per_model(&block.entries);
         }
 
-        let active_session =
-            blocks
-                .iter()
-                .find(|block| block.is_active)
-                .map(|block| ActiveSessionReport {
-                    block_id: block.id.clone(),
-                    started_at: block.start_time,
-                    ends_at: block.end_time,
-                    totals: ReportTotals {
-                        total_tokens: block.tokens.total_tokens(),
-                        input_tokens: block.tokens.input_tokens,
-                        output_tokens: block.tokens.output_tokens,
-                        cache_read_tokens: block.tokens.cache_read_tokens,
-                        cache_creation_tokens: block.tokens.cache_creation_tokens,
-                        total_cost_usd: block.cost_usd,
-                        total_messages: block.message_count,
-                    },
-                    warnings: block.limits.clone(),
-                    per_model: block.model_stats.clone(),
-                    models: block.models.clone(),
-                });
+        let active_session = blocks
+            .iter()
+            .rev()
+            .find(|block| block.is_active)
+            .map(|block| ActiveSessionReport {
+                block_id: block.id.clone(),
+                started_at: block.start_time,
+                ends_at: active_session_end(block, generated_at),
+                totals: ReportTotals {
+                    total_tokens: block.tokens.total_tokens(),
+                    input_tokens: block.tokens.input_tokens,
+                    output_tokens: block.tokens.output_tokens,
+                    cache_read_tokens: block.tokens.cache_read_tokens,
+                    cache_creation_tokens: block.tokens.cache_creation_tokens,
+                    total_cost_usd: block.cost_usd,
+                    total_messages: block.message_count,
+                },
+                warnings: block.limits.clone(),
+                per_model: block.model_stats.clone(),
+                models: block.models.clone(),
+            });
         for block in &mut blocks {
             if !block.is_active {
                 block.entries.clear();
@@ -136,4 +136,15 @@ impl ReportState {
             custom_cost_limit: None,
         }
     }
+}
+
+fn active_session_end(block: &SessionBlock, now: OffsetDateTime) -> OffsetDateTime {
+    block
+        .limits
+        .iter()
+        .filter_map(|limit| limit.reset_at.map(|reset_at| (limit.timestamp, reset_at)))
+        .filter(|(_, reset_at)| *reset_at > now)
+        .max_by_key(|(timestamp, _)| *timestamp)
+        .map(|(_, reset_at)| reset_at)
+        .unwrap_or(block.end_time)
 }

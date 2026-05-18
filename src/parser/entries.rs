@@ -40,8 +40,8 @@ pub fn normalize_usage_entries(
             continue;
         }
 
-        // System and tool_result rows stay in the raw stream because limit
-        // warnings can be meaningful even when token totals are zero. (ref: DL-002)
+        // Warning-only rows stay in the raw stream because limit messages can
+        // be meaningful even when token totals are zero. (ref: DL-002)
         if should_preserve_raw_event(&event.payload) {
             if has_nonzero_tokens(&event.payload) {
                 report.preserved_with_tokens += 1;
@@ -193,7 +193,12 @@ fn should_preserve_raw_event(payload: &Value) -> bool {
     matches!(
         payload.get("type").and_then(Value::as_str),
         Some("system" | "tool_result")
-    )
+    ) || is_rate_limit_error(payload)
+}
+
+fn is_rate_limit_error(payload: &Value) -> bool {
+    payload.get("error").and_then(Value::as_str) == Some("rate_limit")
+        || payload.get("apiErrorStatus").and_then(Value::as_u64) == Some(429)
 }
 
 fn has_nonzero_tokens(payload: &Value) -> bool {

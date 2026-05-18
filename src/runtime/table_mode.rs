@@ -23,7 +23,10 @@ pub fn run_table_mode(resolved: &ResolvedConfig) -> anyhow::Result<ExitCode> {
     }
 
     if view == View::Session {
-        println!("{}", session::render_session_table(&report, &theme));
+        println!(
+            "{}",
+            session::render_session_table(&report, &theme, &resolved.cli.timezone)
+        );
         return Ok(ExitCode::SUCCESS);
     }
 

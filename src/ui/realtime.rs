@@ -1,8 +1,9 @@
-use time::{Duration, OffsetDateTime};
+use time::OffsetDateTime;
 
-use crate::report::model::ModelStats;
 use crate::report::ReportState;
+use crate::report::model::ModelStats;
 use crate::runtime::theme::ThemePalette;
+use crate::ui::timezone::format_datetime_minutes;
 
 const W: usize = 72;
 
@@ -169,12 +170,15 @@ pub fn render_realtime(report: &ReportState, ctx: &RealtimeContext) -> String {
     out.push('\n');
     out.push('\n');
 
-    // Time remaining — based on current 10-minute rate limit window
-    let current_reset = next_10min_boundary(ctx.now);
-    let window_start = current_reset - Duration::minutes(10);
+    // Time remaining follows the active session block rather than recomputing
+    // a parallel boundary from wall-clock time.
+    let current_reset = active.ends_at;
+    let window_start = active.started_at;
     let (hours, minutes) = time_remaining(current_reset, ctx.now);
-    let total_secs = 600.0_f64;
-    let elapsed_secs = (ctx.now - window_start).whole_seconds().max(0) as f64;
+    let total_secs = (current_reset - window_start).whole_seconds().max(1) as f64;
+    let elapsed_secs = (ctx.now - window_start)
+        .whole_seconds()
+        .clamp(0, total_secs as i64) as f64;
     let time_pct = (elapsed_secs / total_secs * 100.0).min(100.0);
     out.push_str(&format!(
         "   {label}Time Left{reset}   {bar}           {value}{h}h {m}m{reset}\n",
@@ -222,9 +226,7 @@ pub fn render_realtime(report: &ReportState, ctx: &RealtimeContext) -> String {
         rate = cost_rate,
     ));
 
-    // Reset time — next 10-minute boundary from now
-    let next_reset = next_10min_boundary(ctx.now);
-    let resets_at = format_reset_time(next_reset, &ctx.timezone);
+    let resets_at = format_reset_time(active.ends_at, &ctx.timezone);
     out.push_str(&format!(
         "   {dim}⏱{reset} {label}Resets{reset}      {value}{resets_at}{reset}\n",
         label = t.label,
@@ -419,15 +421,10 @@ fn short_model_name(model: &str) -> &str {
 }
 
 fn format_reset_time(ends_at: OffsetDateTime, timezone: &str) -> String {
-    let (h, m, _) = ends_at.time().as_hms();
     format!(
-        "{:04}-{:02}-{:02} {:02}:{:02} {}",
-        ends_at.year(),
-        ends_at.month() as u8,
-        ends_at.day(),
-        h,
-        m,
-        timezone,
+        "{} {}",
+        format_datetime_minutes(ends_at, timezone),
+        timezone
     )
 }
 
@@ -483,13 +480,6 @@ fn render_divider(width: usize, theme: &ThemePalette) -> String {
         line = theme.box_h.to_string().repeat(width),
         reset = theme.reset,
     )
-}
-
-fn next_10min_boundary(now: OffsetDateTime) -> OffsetDateTime {
-    let unix = now.unix_timestamp();
-    let window = 600_i64;
-    let next = ((unix / window) + 1) * window;
-    OffsetDateTime::from_unix_timestamp(next).expect("10min boundary should be valid")
 }
 
 fn strip_ansi_len(s: &str) -> usize {

@@ -7,7 +7,7 @@ use cmonitor_rs::config::Theme;
 use cmonitor_rs::domain::{TokenUsage, UsageEntry};
 use cmonitor_rs::report::{ReportState, build_daily_rows, build_monthly_rows};
 use cmonitor_rs::runtime::theme::resolve_theme;
-use cmonitor_rs::ui::{summary, table};
+use cmonitor_rs::ui::{session, summary, table};
 
 fn entry(timestamp: time::OffsetDateTime, total: u64) -> UsageEntry {
     UsageEntry {
@@ -76,6 +76,22 @@ fn daily_and_monthly_rows_use_requested_timezone_name() {
 
     assert_eq!(daily[0].label, "2026-04-01");
     assert_eq!(monthly[0].label, "2026-04");
+}
+
+#[test]
+fn session_table_displays_window_start_and_end_in_requested_timezone() {
+    let blocks = transform_to_blocks(
+        &[entry(datetime!(2026-03-31 23:35 UTC), 20)],
+        datetime!(2026-04-01 00:00 UTC),
+    );
+    let report = ReportState::from_blocks(datetime!(2026-04-01 00:00 UTC), blocks, Vec::new());
+    let theme = resolve_theme(Theme::Classic);
+    let output = session::render_session_table(&report, &theme, "Europe/Berlin");
+
+    assert!(output.contains("Session View (Europe/Berlin)"));
+    assert!(output.contains("2026-04-01 01:00:00"));
+    assert!(output.contains("2026-04-01 06:00:00"));
+    assert!(output.contains("5h 00m"));
 }
 
 #[test]

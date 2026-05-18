@@ -54,14 +54,14 @@ fn test_context() -> RealtimeContext {
         message_limit: Some(45),
         timezone: "UTC".to_owned(),
         theme: resolve_theme(Theme::Classic),
-        now: datetime!(2026-03-14 14:30 UTC),
+        now: datetime!(2026-03-14 14:35 UTC),
     }
 }
 
 #[test]
 fn realtime_render_snapshot_is_deterministic() {
     let report = ReportState {
-        generated_at: datetime!(2026-03-14 12:30 UTC),
+        generated_at: datetime!(2026-03-14 14:35 UTC),
         blocks: Vec::new(),
         limits: Vec::new(),
         totals: ReportTotals {
@@ -75,8 +75,8 @@ fn realtime_render_snapshot_is_deterministic() {
         },
         active_session: Some(ActiveSessionReport {
             block_id: "1700000000".to_owned(),
-            started_at: datetime!(2026-03-14 12:00 UTC),
-            ends_at: datetime!(2026-03-14 17:00 UTC),
+            started_at: datetime!(2026-03-14 14:30 UTC),
+            ends_at: datetime!(2026-03-14 14:40 UTC),
             totals: ReportTotals {
                 total_tokens: 12,
                 input_tokens: 8,
@@ -104,6 +104,51 @@ fn realtime_render_snapshot_is_deterministic() {
 
     let ctx = test_context();
     insta::assert_snapshot!("realtime-render", render_realtime(&report, &ctx));
+}
+
+#[test]
+fn realtime_reset_time_uses_requested_timezone() {
+    let report = ReportState {
+        generated_at: datetime!(2026-03-31 23:35 UTC),
+        blocks: Vec::new(),
+        limits: Vec::new(),
+        totals: ReportTotals {
+            total_tokens: 12,
+            input_tokens: 8,
+            output_tokens: 4,
+            cache_read_tokens: 0,
+            cache_creation_tokens: 0,
+            total_cost_usd: 0.01,
+            total_messages: 1,
+        },
+        active_session: Some(ActiveSessionReport {
+            block_id: "1775000000".to_owned(),
+            started_at: datetime!(2026-03-31 23:30 UTC),
+            ends_at: datetime!(2026-03-31 23:40 UTC),
+            totals: ReportTotals {
+                total_tokens: 12,
+                input_tokens: 8,
+                output_tokens: 4,
+                cache_read_tokens: 0,
+                cache_creation_tokens: 0,
+                total_cost_usd: 0.01,
+                total_messages: 1,
+            },
+            warnings: Vec::new(),
+            per_model: Vec::new(),
+            models: Vec::new(),
+        }),
+        custom_limit: None,
+        custom_cost_limit: None,
+    };
+
+    let mut ctx = test_context();
+    ctx.timezone = "Europe/Berlin".to_owned();
+    ctx.now = datetime!(2026-03-31 23:35 UTC);
+    let rendered = render_realtime(&report, &ctx);
+
+    assert!(rendered.contains("2026-04-01 01:40 Europe/Berlin"));
+    assert!(!rendered.contains("2026-03-31 23:40 Europe/Berlin"));
 }
 
 #[test]

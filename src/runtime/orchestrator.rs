@@ -7,7 +7,7 @@ use time::OffsetDateTime;
 
 use crate::analysis::{
     calculate_custom_cost_limit, calculate_custom_limit, detect_limit_events_from_candidates,
-    transform_to_blocks,
+    mark_limited_blocks_active, transform_to_blocks,
 };
 use crate::config::ResolvedConfig;
 use crate::discovery::{collect_jsonl_files, discover_roots, select_primary_root, select_roots};
@@ -114,6 +114,7 @@ pub fn load_report_state(
 
     let mut blocks = transform_to_blocks(&all_entries, now);
     let limits = detect_limit_events_from_candidates(&all_limit_candidates, &mut blocks);
+    mark_limited_blocks_active(&mut blocks, now);
     let custom_limit = calculate_custom_limit(&blocks);
     let custom_cost_limit = calculate_custom_cost_limit(&blocks);
     let mut state = ReportState::from_blocks(now, blocks, limits);

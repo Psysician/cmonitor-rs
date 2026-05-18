@@ -102,6 +102,10 @@ struct RawLine {
     cost: Option<f64>,
     #[serde(default)]
     content: Option<Value>,
+    #[serde(default)]
+    error: Option<String>,
+    #[serde(default, rename = "apiErrorStatus")]
+    api_error_status: Option<u16>,
 }
 
 #[derive(Deserialize)]
@@ -128,6 +132,8 @@ struct MessagePayload {
     model: Option<String>,
     #[serde(default)]
     usage: Option<UsagePayload>,
+    #[serde(default)]
+    content: Option<Value>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -137,6 +143,8 @@ pub struct LimitCandidate {
     pub timestamp: Option<String>,
     pub entry_type: String,
     pub content: Option<Value>,
+    pub error: Option<String>,
+    pub api_error_status: Option<u16>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -175,14 +183,12 @@ pub fn parse_jsonl_file(
 
         let entry_type = raw.entry_type.as_deref().unwrap_or("").to_owned();
 
+        let limit_candidate = build_limit_candidate(&file.path, line_number, &raw, &entry_type);
+
         if matches!(entry_type.as_str(), "system" | "tool_result") {
-            out.limit_candidates.push(LimitCandidate {
-                source_file: file.path.clone(),
-                line_number,
-                timestamp: raw.timestamp,
-                entry_type,
-                content: raw.content,
-            });
+            if let Some(candidate) = limit_candidate {
+                out.limit_candidates.push(candidate);
+            }
             continue;
         }
 
@@ -197,7 +203,14 @@ pub fn parse_jsonl_file(
 
         let tokens = extract_tokens_from_raw(&raw, &entry_type);
         if tokens.total_tokens() == 0 {
+            if let Some(candidate) = limit_candidate {
+                out.limit_candidates.push(candidate);
+            }
             continue;
+        }
+
+        if let Some(candidate) = limit_candidate {
+            out.limit_candidates.push(candidate);
         }
 
         let message_id = raw
@@ -344,14 +357,12 @@ pub fn parse_jsonl_file_no_dedup(file: &JsonlFile) -> anyhow::Result<ParsedFile>
 
         let entry_type = raw.entry_type.as_deref().unwrap_or("").to_owned();
 
+        let limit_candidate = build_limit_candidate(&file.path, line_number, &raw, &entry_type);
+
         if matches!(entry_type.as_str(), "system" | "tool_result") {
-            out.limit_candidates.push(LimitCandidate {
-                source_file: file.path.clone(),
-                line_number,
-                timestamp: raw.timestamp,
-                entry_type,
-                content: raw.content,
-            });
+            if let Some(candidate) = limit_candidate {
+                out.limit_candidates.push(candidate);
+            }
             continue;
         }
 
@@ -366,7 +377,14 @@ pub fn parse_jsonl_file_no_dedup(file: &JsonlFile) -> anyhow::Result<ParsedFile>
 
         let tokens = extract_tokens_from_raw(&raw, &entry_type);
         if tokens.total_tokens() == 0 {
+            if let Some(candidate) = limit_candidate {
+                out.limit_candidates.push(candidate);
+            }
             continue;
+        }
+
+        if let Some(candidate) = limit_candidate {
+            out.limit_candidates.push(candidate);
         }
 
         let message_id = raw
@@ -402,4 +420,34 @@ pub fn parse_jsonl_file_no_dedup(file: &JsonlFile) -> anyhow::Result<ParsedFile>
     }
 
     Ok(out)
+}
+
+fn build_limit_candidate(
+    source_file: &std::path::Path,
+    line_number: usize,
+    raw: &RawLine,
+    entry_type: &str,
+) -> Option<LimitCandidate> {
+    let content = raw.content.clone().or_else(|| {
+        raw.message
+            .as_ref()
+            .and_then(|message| message.content.clone())
+    });
+    let is_warning_row = matches!(entry_type, "system" | "tool_result");
+    let is_rate_limit_error =
+        raw.error.as_deref() == Some("rate_limit") || raw.api_error_status == Some(429);
+
+    if !is_warning_row && !is_rate_limit_error {
+        return None;
+    }
+
+    Some(LimitCandidate {
+        source_file: source_file.to_path_buf(),
+        line_number,
+        timestamp: raw.timestamp.clone(),
+        entry_type: entry_type.to_owned(),
+        content,
+        error: raw.error.clone(),
+        api_error_status: raw.api_error_status,
+    })
 }

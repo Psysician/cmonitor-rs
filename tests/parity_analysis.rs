@@ -3,11 +3,12 @@ use std::path::PathBuf;
 use time::macros::datetime;
 
 use cmonitor_rs::analysis::{
-    calculate_custom_cost_limit, calculate_custom_limit, detect_limit_events, transform_to_blocks,
+    calculate_custom_cost_limit, calculate_custom_limit, detect_limit_events,
+    detect_limit_events_from_candidates, mark_limited_blocks_active, transform_to_blocks,
 };
 use cmonitor_rs::discovery::JsonlFile;
 use cmonitor_rs::domain::{TokenUsage, UsageEntry};
-use cmonitor_rs::parser::{decode_jsonl_file, normalize_usage_entries};
+use cmonitor_rs::parser::{LimitCandidate, decode_jsonl_file, normalize_usage_entries};
 use cmonitor_rs::report::{ReportState, build_daily_rows, build_monthly_rows};
 
 /// Shares the ingest fixture with analysis tests so preserved-warning coverage
@@ -41,17 +42,18 @@ fn usage_entry_with_cost(timestamp: time::OffsetDateTime, total: u64, cost: f64)
 }
 
 #[test]
-fn block_builder_rounds_to_10min_and_inserts_gaps() {
+fn block_builder_rounds_to_hour_and_uses_five_hour_sessions() {
     let entries = vec![
         usage_entry(datetime!(2026-03-14 12:13 UTC), 10),
         usage_entry(datetime!(2026-03-14 12:17 UTC), 20),
-        usage_entry(datetime!(2026-03-14 12:35 UTC), 30),
+        usage_entry(datetime!(2026-03-14 18:35 UTC), 30),
     ];
 
-    let blocks = transform_to_blocks(&entries, datetime!(2026-03-14 12:38 UTC));
+    let blocks = transform_to_blocks(&entries, datetime!(2026-03-14 20:00 UTC));
 
     assert_eq!(blocks.len(), 3);
-    assert_eq!(blocks[0].start_time, datetime!(2026-03-14 12:10 UTC));
+    assert_eq!(blocks[0].start_time, datetime!(2026-03-14 12:00 UTC));
+    assert_eq!(blocks[0].end_time, datetime!(2026-03-14 17:00 UTC));
     assert!(blocks[1].is_gap);
     assert!(blocks[2].is_active);
 }
@@ -75,6 +77,37 @@ fn limit_detection_assigns_warnings_to_block_ranges() {
 
     assert_eq!(limits.len(), 1);
     assert_eq!(blocks[0].limits.len(), 1);
+}
+
+#[test]
+fn assistant_rate_limit_reset_keeps_limited_block_active() {
+    let entries = vec![usage_entry(datetime!(2026-03-14 10:18 UTC), 10)];
+    let mut blocks = transform_to_blocks(&entries, datetime!(2026-03-14 16:00 UTC));
+
+    assert!(!blocks[0].is_active);
+
+    let limits = detect_limit_events_from_candidates(
+        &[LimitCandidate {
+            source_file: PathBuf::from("fixture.jsonl"),
+            line_number: 2,
+            timestamp: Some("2026-03-14T10:19:00Z".to_owned()),
+            entry_type: "assistant".to_owned(),
+            content: Some(serde_json::json!([
+                {"type": "text", "text": "You've hit your limit - resets 6pm (UTC)"}
+            ])),
+            error: Some("rate_limit".to_owned()),
+            api_error_status: Some(429),
+        }],
+        &mut blocks,
+    );
+    mark_limited_blocks_active(&mut blocks, datetime!(2026-03-14 16:00 UTC));
+    let report = ReportState::from_blocks(datetime!(2026-03-14 16:00 UTC), blocks, limits);
+
+    let active = report
+        .active_session
+        .expect("future reset should keep block active");
+    assert_eq!(active.ends_at, datetime!(2026-03-14 18:00 UTC));
+    assert_eq!(active.warnings.len(), 1);
 }
 
 #[test]
@@ -116,8 +149,8 @@ fn limit_detection_uses_shared_mixed_event_fixture() {
     let limits = detect_limit_events(&normalized.retained_raw_events, &mut blocks);
     let report = ReportState::from_blocks(datetime!(2026-03-14 12:30 UTC), blocks, limits.clone());
 
-    assert_eq!(limits.len(), 2);
-    assert_eq!(report.limits.len(), 2);
+    assert_eq!(limits.len(), 3);
+    assert_eq!(report.limits.len(), 3);
     assert!(
         limits
             .iter()
@@ -128,6 +161,10 @@ fn limit_detection_uses_shared_mixed_event_fixture() {
             .iter()
             .any(|limit| limit.message.contains("Usage limit"))
     );
+    assert!(limits.iter().any(|limit| {
+        limit.message.contains("You've hit your limit")
+            && limit.reset_at == Some(datetime!(2026-03-14 16:00 UTC))
+    }));
 }
 
 #[test]
